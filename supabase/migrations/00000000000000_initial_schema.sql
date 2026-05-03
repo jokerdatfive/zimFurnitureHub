@@ -118,6 +118,7 @@ create table public.orders (
   status text check (status in ('PENDING', 'PAID', 'SHIPPED', 'DELIVERED', 'CANCELLED')) default 'PENDING',
   total_amount numeric(10, 2) not null,
   stripe_session_id text unique,
+  customer_email text,
   shipping_address jsonb,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
