@@ -10,16 +10,28 @@ const FALLBACK_IMAGES = [
 ];
 
 export async function FeaturedCollections() {
-  const supabase = await createClient();
-  const { data: categories } = await supabase.from('categories').select('*').limit(3);
+  let displayCollections: any[] = [];
 
-  const displayCollections = categories?.map((cat: any, index: number) => ({
-    id: cat.id,
-    title: cat.name,
-    description: cat.description,
-    slug: cat.slug,
-    image: FALLBACK_IMAGES[index % FALLBACK_IMAGES.length],
-  })) || [];
+  try {
+    const supabase = await createClient();
+    const { data: categories } = await supabase.from('categories').select('*').limit(3);
+
+    displayCollections = categories?.map((cat: any, index: number) => ({
+      id: cat.id,
+      title: cat.name,
+      description: cat.description,
+      slug: cat.slug,
+      image: FALLBACK_IMAGES[index % FALLBACK_IMAGES.length],
+    })) || [];
+  } catch (err) {
+    console.error("Failed to load FeaturedCollections:", err);
+    displayCollections = [];
+  }
+
+  if (displayCollections.length === 0) {
+    return null;
+  }
+
   return (
     <section className="py-24 lg:py-32 bg-secondary/30">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">

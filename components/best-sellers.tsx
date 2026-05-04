@@ -2,35 +2,48 @@ import { createClient } from "@/utils/supabase/server";
 import { ProductCard } from "@/components/product-card";
 
 export async function BestSellers() {
-  const supabase = await createClient();
-  
-  // Fetch featured products with their first variant image
-  const { data: products, error } = await supabase
-    .from('products')
-    .select(`
-      id,
-      name,
-      slug,
-      base_price,
-      product_variants (
-        image_url
-      )
-    `)
-    .eq('is_featured', true)
-    .limit(8);
+  let displayProducts: any[] = [];
 
-  if (error) {
-    console.error("Error fetching featured products:", error);
+  try {
+    const supabase = await createClient();
+    
+    // Fetch featured products with their first variant image
+    const { data: products, error } = await supabase
+      .from('products')
+      .select(`
+        id,
+        name,
+        slug,
+        base_price,
+        product_variants (
+          image_url
+        )
+      `)
+      .eq('is_featured', true)
+      .limit(8);
+
+    if (error) {
+      console.error("Error fetching featured products:", error);
+    }
+
+    // Format data for the ProductCard
+    displayProducts = products?.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      slug: p.slug,
+      price: p.base_price,
+      image: p.product_variants?.[0]?.image_url || "/images/product-sofa.jpg"
+    })) || [];
+  } catch (err) {
+    console.error("Failed to load BestSellers:", err);
+    // Fallback gracefully instead of crashing the page
+    displayProducts = [];
   }
 
-  // Format data for the ProductCard
-  const displayProducts = products?.map((p: any) => ({
-    id: p.id,
-    name: p.name,
-    slug: p.slug,
-    price: p.base_price,
-    image: p.product_variants?.[0]?.image_url || "/images/product-sofa.jpg"
-  })) || [];
+  if (displayProducts.length === 0) {
+    return null; // Hide the section if no products
+  }
+
   return (
     <section className="py-24 lg:py-32">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">

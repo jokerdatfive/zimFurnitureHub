@@ -9,29 +9,37 @@ export default async function ProductDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const supabase = await createClient();
+  let product: any = null;
 
-  const { data: product } = await supabase
-    .from("products")
-    .select(`
-      id,
-      name,
-      slug,
-      description,
-      base_price,
-      categories (
-        name
-      ),
-      product_variants (
-        sku,
+  try {
+    const supabase = await createClient();
+
+    const { data } = await supabase
+      .from("products")
+      .select(`
+        id,
         name,
-        price,
-        image_url,
-        stock_quantity
-      )
-    `)
-    .eq("slug", slug)
-    .single();
+        slug,
+        description,
+        base_price,
+        categories (
+          name
+        ),
+        product_variants (
+          sku,
+          name,
+          price,
+          image_url,
+          stock_quantity
+        )
+      `)
+      .eq("slug", slug)
+      .single();
+      
+    product = data;
+  } catch (err) {
+    console.error("Failed to fetch product detail:", err);
+  }
 
   if (!product) {
     notFound();

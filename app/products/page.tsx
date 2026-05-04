@@ -7,32 +7,39 @@ export const metadata = {
 };
 
 export default async function ProductsPage() {
-  const supabase = await createClient();
-  
-  const { data: products, error } = await supabase
-    .from('products')
-    .select(`
-      id,
-      name,
-      slug,
-      base_price,
-      product_variants (
-        image_url
-      )
-    `)
-    .order('created_at', { ascending: false });
+  let displayProducts: any[] = [];
 
-  if (error) {
-    console.error("Error fetching products:", error);
+  try {
+    const supabase = await createClient();
+    
+    const { data: products, error } = await supabase
+      .from('products')
+      .select(`
+        id,
+        name,
+        slug,
+        base_price,
+        product_variants (
+          image_url
+        )
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error("Error fetching products:", error);
+    }
+
+    displayProducts = products?.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      slug: p.slug,
+      price: p.base_price,
+      image: p.product_variants?.[0]?.image_url || "/images/product-sofa.jpg"
+    })) || [];
+  } catch (err) {
+    console.error("Failed to load products:", err);
+    displayProducts = [];
   }
-
-  const displayProducts = products?.map((p: any) => ({
-    id: p.id,
-    name: p.name,
-    slug: p.slug,
-    price: p.base_price,
-    image: p.product_variants?.[0]?.image_url || "/images/product-sofa.jpg"
-  })) || [];
 
   return (
     <div className="pt-24 pb-16 bg-background min-h-screen">
