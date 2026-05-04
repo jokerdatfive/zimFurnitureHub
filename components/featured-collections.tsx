@@ -1,31 +1,25 @@
-"use client";
-
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { createClient } from "@/utils/supabase/server";
 
-const collections = [
-  {
-    id: "sofas",
-    title: "The Sofa Collection",
-    description: "Luxurious comfort meets timeless design",
-    image: "/images/collection-sofas.jpg",
-  },
-  {
-    id: "dining",
-    title: "Minimalist Dining",
-    description: "Gather in refined elegance",
-    image: "/images/collection-dining.jpg",
-  },
-  {
-    id: "bedroom",
-    title: "Premium Bedding",
-    description: "Rest in pure sophistication",
-    image: "/images/collection-bedroom.jpg",
-  },
+const FALLBACK_IMAGES = [
+  "/images/collection-sofas.jpg",
+  "/images/collection-dining.jpg",
+  "/images/collection-bedroom.jpg",
 ];
 
-export function FeaturedCollections() {
+export async function FeaturedCollections() {
+  const supabase = await createClient();
+  const { data: categories } = await supabase.from('categories').select('*').limit(3);
+
+  const displayCollections = categories?.map((cat: any, index: number) => ({
+    id: cat.id,
+    title: cat.name,
+    description: cat.description,
+    slug: cat.slug,
+    image: FALLBACK_IMAGES[index % FALLBACK_IMAGES.length],
+  })) || [];
   return (
     <section className="py-24 lg:py-32 bg-secondary/30">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
@@ -41,7 +35,7 @@ export function FeaturedCollections() {
 
         {/* Collections Grid */}
         <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
-          {collections.map((collection) => (
+          {displayCollections.map((collection) => (
             <Link
               key={collection.id}
               href="#"

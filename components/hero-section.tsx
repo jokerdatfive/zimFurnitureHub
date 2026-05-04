@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 
@@ -18,20 +19,24 @@ export function HeroSection() {
               Discover furniture that transforms spaces into sanctuaries. Where timeless design meets uncompromising quality.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-              <Button
-                size="lg"
-                className="h-12 px-8 text-sm font-medium tracking-wide"
-              >
-                Explore Collections
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="h-12 px-8 text-sm font-medium tracking-wide"
-              >
-                Our Story
-              </Button>
+              <Link href="/products" className="w-full sm:w-auto">
+                <Button
+                  size="lg"
+                  className="w-full h-12 px-8 text-sm font-medium tracking-wide"
+                >
+                  Explore Collections
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+              <Link href="/about" className="w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="w-full h-12 px-8 text-sm font-medium tracking-wide"
+                >
+                  Our Story
+                </Button>
+              </Link>
             </div>
           </div>
 

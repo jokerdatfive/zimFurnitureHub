@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/lib/cart-context";
 import { ShoppingCart } from "lucide-react";
@@ -10,19 +11,22 @@ interface ProductCardProps {
   name: string;
   price: number;
   image: string;
+  slug?: string;
 }
 
-export function ProductCard({ id, name, price, image }: ProductCardProps) {
+export function ProductCard({ id, name, price, image, slug }: ProductCardProps) {
   const { addToCart } = useCart();
 
-  const handleAddToCart = () => {
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     addToCart({ id, name, price, image });
   };
 
   return (
     <div className="group">
       {/* Image Container */}
-      <div className="relative aspect-[4/5] overflow-hidden rounded-sm bg-muted mb-4">
+      <Link href={slug ? `/products/${slug}` : "#"} className="block relative aspect-[4/5] overflow-hidden rounded-sm bg-muted mb-4 group-hover:opacity-95 transition-opacity">
         <Image
           src={image}
           alt={name}
@@ -39,13 +43,15 @@ export function ProductCard({ id, name, price, image }: ProductCardProps) {
             Add to Cart
           </Button>
         </div>
-      </div>
+      </Link>
 
       {/* Product Info */}
       <div className="space-y-1">
-        <h3 className="font-serif text-lg text-foreground group-hover:text-foreground/80 transition-colors">
-          {name}
-        </h3>
+        <Link href={slug ? `/products/${slug}` : "#"}>
+          <h3 className="font-serif text-lg text-foreground hover:text-foreground/80 transition-colors">
+            {name}
+          </h3>
+        </Link>
         <p className="text-base font-medium text-foreground">
           ${price.toLocaleString()}
         </p>

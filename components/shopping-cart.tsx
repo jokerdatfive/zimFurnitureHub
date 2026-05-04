@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useState } from "react";
 import { useCart } from "@/lib/cart-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +15,7 @@ import {
 import { Minus, Plus, X } from "lucide-react";
 
 export function ShoppingCart() {
+  const [isLoading, setIsLoading] = useState(false);
   const {
     items,
     isOpen,
@@ -24,6 +26,29 @@ export function ShoppingCart() {
   } = useCart();
 
   const subtotal = getSubtotal();
+
+  const onCheckout = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        console.error("Checkout failed:", data.error);
+      }
+    } catch (error) {
+      console.error("Error during checkout:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && closeCart()}>
@@ -141,8 +166,12 @@ export function ShoppingCart() {
             <p className="text-xs text-muted-foreground text-center">
               Shipping and taxes calculated at checkout
             </p>
-            <Button className="w-full h-12 text-sm font-medium tracking-wide">
-              Proceed to Visa Checkout
+            <Button 
+              className="w-full h-12 text-sm font-medium tracking-wide"
+              onClick={onCheckout}
+              disabled={isLoading || items.length === 0}
+            >
+              {isLoading ? "Processing..." : "Proceed to Visa Checkout"}
             </Button>
             <Button
               variant="ghost"
