@@ -44,6 +44,10 @@ export async function POST(req: NextRequest) {
       line_items,
       success_url: `${siteUrl}/success`,
       cancel_url: `${siteUrl}/cart`,
+      billing_address_collection: 'required',
+      shipping_address_collection: {
+        allowed_countries: ['ZW', 'US', 'ZA', 'GB'], // Added Zimbabwe and other relevant countries
+      },
     });
 
     return NextResponse.json({ url: session.url }, { status: 200 });

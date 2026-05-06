@@ -3,6 +3,7 @@ import { Cormorant_Garamond, Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { CartProvider } from "@/lib/cart-context";
 import { Navigation } from "@/components/navigation";
+import { Footer } from "@/components/footer";
 import { ShoppingCart } from "@/components/shopping-cart";
 import './globals.css'
 
@@ -51,6 +52,7 @@ export default function RootLayout({
         <CartProvider>
           <Navigation />
           {children}
+          <Footer />
           <ShoppingCart />
         </CartProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
