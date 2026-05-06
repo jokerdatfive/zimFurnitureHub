@@ -23,13 +23,22 @@ export async function FeaturedCollections() {
       slug: cat.slug,
       image: FALLBACK_IMAGES[index % FALLBACK_IMAGES.length],
     })) || [];
-  } catch (err) {
+  } catch (err: any) {
     console.error("Failed to load FeaturedCollections:", err);
-    displayCollections = [];
+    return (
+      <div className="py-20 text-center bg-destructive/5">
+        <h3 className="text-xl font-serif text-destructive">Database Connection Error</h3>
+        <p className="text-muted-foreground text-sm mt-2">{err.message || "Unknown error occurred"}</p>
+      </div>
+    );
   }
 
   if (displayCollections.length === 0) {
-    return null;
+    return (
+      <div className="py-20 text-center bg-secondary/10">
+        <h3 className="text-xl font-serif">No collections found in database.</h3>
+      </div>
+    );
   }
 
   return (

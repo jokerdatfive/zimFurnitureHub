@@ -34,14 +34,24 @@ export async function BestSellers() {
       price: p.base_price,
       image: p.product_variants?.[0]?.image_url || "/images/product-sofa.jpg"
     })) || [];
-  } catch (err) {
+  } catch (err: any) {
     console.error("Failed to load BestSellers:", err);
-    // Fallback gracefully instead of crashing the page
-    displayProducts = [];
+    return (
+      <div className="py-20 text-center border-t border-border bg-destructive/5">
+        <h3 className="text-xl font-serif text-destructive">Database Connection Error</h3>
+        <p className="text-muted-foreground text-sm mt-2">{err.message || "Unknown error occurred"}</p>
+        <p className="text-xs mt-4">Make sure NEXT_PUBLIC_SUPABASE_URL and ANON_KEY are set in Vercel.</p>
+      </div>
+    );
   }
 
   if (displayProducts.length === 0) {
-    return null; // Hide the section if no products
+    return (
+      <div className="py-20 text-center border-t border-border">
+        <h3 className="text-xl font-serif">No featured products found.</h3>
+        <p className="text-muted-foreground">Please check if 'is_featured' is set to true in the database.</p>
+      </div>
+    );
   }
 
   return (
