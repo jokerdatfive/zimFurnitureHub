@@ -35,7 +35,7 @@ export function Footer() {
               <li><Link href="/products?category=bedroom" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Bedroom</Link></li>
               <li><Link href="/products?category=dining-room" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Dining Room</Link></li>
               <li><Link href="/products" className="text-sm text-muted-foreground hover:text-foreground transition-colors">All Collections</Link></li>
-              <li><Link href="/our-story" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Our Story</Link></li>
+              <li><Link href="/about" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Our Story</Link></li>
             </ul>
           </div>
 
