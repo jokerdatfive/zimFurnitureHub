@@ -7,20 +7,13 @@ export async function BestSellers() {
   try {
     const supabase = await createClient();
     
-    // Fetch featured products with their first variant image
+    // Simple fetch to debug
     const { data: products, error } = await supabase
       .from('products')
-      .select(`
-        id,
-        name,
-        slug,
-        base_price,
-        product_variants (
-          image_url
-        )
-      `)
-      .eq('is_featured', true)
-      .limit(8);
+      .select('*');
+
+    console.log("Debug - Raw Products:", products);
+    console.log("Debug - Error:", error);
 
     if (error) {
       console.error("Error fetching featured products:", error);
@@ -32,7 +25,7 @@ export async function BestSellers() {
       name: p.name,
       slug: p.slug,
       price: p.base_price,
-      image: p.product_variants?.[0]?.image_url || "/images/product-sofa.jpg"
+      image: "/images/product-sofa.jpg"
     })) || [];
   } catch (err: any) {
     console.error("Failed to load BestSellers:", err);

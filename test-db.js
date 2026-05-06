@@ -53,10 +53,19 @@ async function testConnection() {
         console.table(data.map(cat => ({ id: cat.id, name: cat.name, slug: cat.slug })));
       }
       
-      // Also check products
-      const { count, error: pError } = await supabase.from('products').select('*', { count: 'exact', head: true });
-      if (!pError) {
-        console.log(`📦 Total products in database: ${count || 0}`);
+      // Also check products with JOIN
+      console.log("\nTesting products with variants JOIN...");
+      const { data: pJoin, error: pjError } = await supabase
+        .from('products')
+        .select('id, name, product_variants(image_url)')
+        .limit(1);
+        
+      if (pjError) {
+        console.error("❌ JOIN failed! Error:", pjError.message);
+        console.error("Hint: Check if the relationship name is correct.");
+      } else {
+        console.log("✅ JOIN successful!");
+        console.log(JSON.stringify(pJoin, null, 2));
       }
     }
   } catch (err) {
