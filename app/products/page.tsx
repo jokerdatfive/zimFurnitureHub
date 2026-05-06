@@ -42,14 +42,15 @@ export default async function ProductsPage({
       query = query.ilike('name', `%${q}%`);
     }
 
-    const { data: products, error } = await query.order('created_at', { ascending: false });
+    const { data: productsData, error } = await query.order('created_at', { ascending: false });
+    const products = (productsData || []) as any[];
 
     if (error) {
       console.error("Error fetching products:", error);
     }
 
     if (category && products && products.length > 0) {
-      const cat = products[0].categories;
+      const cat = products[0].categories as any;
       categoryName = Array.isArray(cat) ? cat[0]?.name : cat?.name;
     } else if (q) {
       categoryName = `Search results for "${q}"`;
