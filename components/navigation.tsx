@@ -19,6 +19,7 @@ export function Navigation() {
     { href: "/products?category=living-room", label: "Living" },
     { href: "/products?category=bedroom", label: "Bedroom" },
     { href: "/products?category=dining-room", label: "Dining" },
+    { href: "/our-story", label: "Our Story" },
   ];
 
   const handleSearch = (e: React.FormEvent) => {
