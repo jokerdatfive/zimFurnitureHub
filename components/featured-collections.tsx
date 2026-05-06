@@ -59,7 +59,7 @@ export async function FeaturedCollections() {
           {displayCollections.map((collection) => (
             <Link
               key={collection.id}
-              href="#"
+              href={`/products?category=${collection.slug}`}
               className="group relative aspect-[3/4] overflow-hidden rounded-sm bg-muted"
             >
               <Image

@@ -7,25 +7,30 @@ export async function BestSellers() {
   try {
     const supabase = await createClient();
     
-    // Simple fetch to debug
     const { data: products, error } = await supabase
       .from('products')
-      .select('*');
-
-    console.log("Debug - Raw Products:", products);
-    console.log("Debug - Error:", error);
+      .select(`
+        id,
+        name,
+        slug,
+        base_price,
+        product_variants (
+          image_url
+        )
+      `)
+      .eq('is_featured', true)
+      .limit(8);
 
     if (error) {
       console.error("Error fetching featured products:", error);
     }
 
-    // Format data for the ProductCard
     displayProducts = products?.map((p: any) => ({
       id: p.id,
       name: p.name,
       slug: p.slug,
       price: p.base_price,
-      image: "/images/product-sofa.jpg"
+      image: p.product_variants?.[0]?.image_url || "/images/product-sofa.jpg"
     })) || [];
   } catch (err: any) {
     console.error("Failed to load BestSellers:", err);

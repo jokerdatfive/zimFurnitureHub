@@ -54,18 +54,26 @@ async function testConnection() {
       }
       
       // Also check products with JOIN
-      console.log("\nTesting products with variants JOIN...");
+      console.log("\nTesting products with categories JOIN...");
       const { data: pJoin, error: pjError } = await supabase
         .from('products')
-        .select('id, name, product_variants(image_url)')
+        .select('id, name, categories(name)')
         .limit(1);
         
       if (pjError) {
-        console.error("❌ JOIN failed! Error:", pjError.message);
-        console.error("Hint: Check if the relationship name is correct.");
+        console.error("❌ Category JOIN failed! Error:", pjError.message);
+        console.log("Trying with 'category' (singular)...");
+        const { data: pJoin2, error: pjError2 } = await supabase
+          .from('products')
+          .select('id, name, category(name)')
+          .limit(1);
+          if (pjError2) {
+             console.error("❌ Both singular and plural failed!");
+          } else {
+             console.log("✅ Singular 'category' worked!");
+          }
       } else {
-        console.log("✅ JOIN successful!");
-        console.log(JSON.stringify(pJoin, null, 2));
+        console.log("✅ Plural 'categories' worked!");
       }
     }
   } catch (err) {

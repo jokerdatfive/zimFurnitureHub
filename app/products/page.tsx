@@ -6,13 +6,19 @@ export const metadata = {
   description: "Browse our entire collection of premium furniture.",
 };
 
-export default async function ProductsPage() {
+export default async function ProductsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string; q?: string }>;
+}) {
+  const { category, q } = await searchParams;
   let displayProducts: any[] = [];
+  let categoryName = "All Collections";
 
   try {
     const supabase = await createClient();
     
-    const { data: products, error } = await supabase
+    let query = supabase
       .from('products')
       .select(`
         id,
@@ -21,12 +27,35 @@ export default async function ProductsPage() {
         base_price,
         product_variants (
           image_url
+        ),
+        categories!inner (
+          name,
+          slug
         )
-      `)
-      .order('created_at', { ascending: false });
+      `);
+
+    if (category) {
+      query = query.eq('categories.slug', category);
+    }
+
+    if (q) {
+      query = query.ilike('name', `%${q}%`);
+    }
+
+    const { data: products, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
       console.error("Error fetching products:", error);
+    }
+
+    if (category && products && products.length > 0) {
+      const cat = products[0].categories;
+      categoryName = Array.isArray(cat) ? cat[0]?.name : cat?.name;
+    } else if (q) {
+      categoryName = `Search results for "${q}"`;
+    } else if (category) {
+       // If category is provided but no products, we can try to fetch the category name separately or just show the slug
+       categoryName = category.charAt(0).toUpperCase() + category.slice(1).replace(/-/g, ' ');
     }
 
     displayProducts = products?.map((p: any) => ({
@@ -36,9 +65,15 @@ export default async function ProductsPage() {
       price: p.base_price,
       image: p.product_variants?.[0]?.image_url || "/images/product-sofa.jpg"
     })) || [];
-  } catch (err) {
+  } catch (err: any) {
     console.error("Failed to load products:", err);
-    displayProducts = [];
+    return (
+      <div className="pt-32 pb-20 text-center bg-destructive/5 min-h-screen">
+        <h3 className="text-xl font-serif text-destructive">Database Connection Error</h3>
+        <p className="text-muted-foreground text-sm mt-2">{err.message || "Unknown error occurred"}</p>
+        <p className="text-xs mt-4">Make sure NEXT_PUBLIC_SUPABASE_URL and ANON_KEY are set in Vercel.</p>
+      </div>
+    );
   }
 
   return (
@@ -46,7 +81,7 @@ export default async function ProductsPage() {
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="mb-12 border-b border-border pb-8">
           <h1 className="font-serif text-4xl md:text-5xl font-semibold text-foreground">
-            Shop All Collections
+            {categoryName}
           </h1>
           <p className="mt-4 text-muted-foreground text-lg max-w-2xl">
             Explore our meticulously crafted pieces designed to elevate your living spaces.
