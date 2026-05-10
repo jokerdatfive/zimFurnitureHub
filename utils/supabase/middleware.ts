@@ -38,7 +38,7 @@ export async function updateSession(request: NextRequest) {
       error
     } = await supabase.auth.getUser()
 
-    if (error) {
+    if (error && error.message !== 'Auth session missing!') {
       console.error('Middleware Supabase Auth Error:', error.message);
     }
 
