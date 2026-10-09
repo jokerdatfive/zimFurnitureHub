@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Search, ShoppingCart, Menu, X } from "lucide-react";
 import { useCart } from "@/lib/cart-context";
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,7 @@ export function Navigation() {
     { href: "/about", label: "Our Story" },
   ];
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = (e: FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       router.push(`/products?q=${encodeURIComponent(searchQuery.trim())}`);
@@ -36,10 +37,26 @@ export function Navigation() {
       <nav className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center">
-            <span className="font-serif text-xl font-semibold tracking-tight text-foreground">
-              Zim Furniture Hub
-            </span>
+          <Link href="/" className="flex items-center gap-3">
+            <div className="relative h-10 flex items-center">
+              <Image
+                src="/branding/01_logo_horizontal_transparent.svg"
+                alt="Kombera Kombera Furnitures"
+                width={165}
+                height={48}
+                priority
+                className="h-8 sm:h-9 w-auto object-contain dark:hidden"
+              />
+              <Image
+                src="/branding/02_logo_horizontal_white_transparent.svg"
+                alt="Kombera Kombera Furnitures"
+                width={165}
+                height={48}
+                priority
+                className="h-8 sm:h-9 w-auto object-contain hidden dark:block"
+              />
+            </div>
+            <span className="sr-only">Kombera Kombera Furnitures</span>
           </Link>
 
           {/* Desktop Navigation */}

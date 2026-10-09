@@ -19,25 +19,21 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Zim Furniture Hub | Elevated Living, Crafted for You',
-  description: 'Discover luxury minimalist furniture that transforms your space. Premium craftsmanship meets modern design.',
+  title: 'Kombera Kombera Furnitures | Contemporary Organic Living',
+  description: 'Discover luxury minimalist furniture and contemporary organic craftsmanship at Kombera Kombera Furnitures. Handcrafted with passion in Harare, Zimbabwe.',
   generator: 'v0.app',
   icons: {
     icon: [
       {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
+        url: '/branding/03_avatar_icon_transparent.svg',
         type: 'image/svg+xml',
       },
+      {
+        url: '/branding/04_avatar_profile_luxury_badge.png',
+        sizes: '32x32',
+      },
     ],
-    apple: '/apple-icon.png',
+    apple: '/branding/04_avatar_profile_luxury_badge.png',
   },
 }
 

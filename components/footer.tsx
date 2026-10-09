@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Facebook, Instagram, Twitter, Mail, Phone, MapPin } from "lucide-react";
 
 export function Footer() {
@@ -8,11 +9,24 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 lg:gap-12">
           {/* Brand and About */}
           <div className="col-span-1 md:col-span-1">
-            <Link href="/" className="font-serif text-xl font-semibold text-foreground">
-              Zim Furniture Hub
+            <Link href="/" className="inline-block">
+              <Image
+                src="/branding/01_logo_horizontal_transparent.svg"
+                alt="Kombera Kombera Furnitures"
+                width={170}
+                height={50}
+                className="h-9 w-auto object-contain dark:hidden"
+              />
+              <Image
+                src="/branding/02_logo_horizontal_white_transparent.svg"
+                alt="Kombera Kombera Furnitures"
+                width={170}
+                height={50}
+                className="h-9 w-auto object-contain hidden dark:block"
+              />
             </Link>
             <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
-              Elevating homes with premium, meticulously crafted furniture. Quality design for the modern living space.
+              Kombera Kombera Furnitures — Elevating homes with contemporary organic living, handcrafted excellence, and timeless design.
             </p>
             <div className="mt-6 flex gap-4">
               <Link href="#" className="text-muted-foreground hover:text-foreground transition-colors">
@@ -68,7 +82,7 @@ export function Footer() {
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="h-5 w-5 text-muted-foreground shrink-0" />
-                <span className="text-sm text-muted-foreground">hello@zimfurniturehub.com</span>
+                <span className="text-sm text-muted-foreground">hello@komberakomberafurnitures.com</span>
               </li>
             </ul>
           </div>
@@ -76,7 +90,7 @@ export function Footer() {
 
         <div className="mt-12 pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} Zim Furniture Hub. All rights reserved.
+            © {new Date().getFullYear()} Kombera Kombera Furnitures. All rights reserved.
           </p>
           <div className="flex gap-4">
             <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest border border-border px-2 py-1 rounded">Visa</span>

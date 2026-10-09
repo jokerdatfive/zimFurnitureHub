@@ -49,7 +49,13 @@ export default async function AdminPage() {
                 <Plus className="h-5 w-5" />
                 Add New Stock
               </h2>
-              <form action={addProduct} className="space-y-4">
+              <form
+                action={async (formData: FormData) => {
+                  "use server";
+                  await addProduct(formData);
+                }}
+                className="space-y-4"
+              >
                 <div>
                   <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1 block">Product Name</label>
                   <input name="name" required className="w-full bg-background border border-border rounded-sm px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. Oslo Velvet Sofa" />

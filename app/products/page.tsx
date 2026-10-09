@@ -2,7 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { ProductCard } from "@/components/product-card";
 
 export const metadata = {
-  title: "Shop All Collections | Zim Furniture Hub",
+  title: "Shop All Collections | Kombera Kombera Furnitures",
   description: "Browse our entire collection of premium furniture.",
 };
 

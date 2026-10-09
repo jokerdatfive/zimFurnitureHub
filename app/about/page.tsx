@@ -28,7 +28,7 @@ export default function OurStory() {
           <div className="text-center">
             <h2 className="font-serif text-3xl font-semibold mb-6">The Beginning</h2>
             <p className="text-lg text-muted-foreground leading-relaxed">
-              Zim Furniture Hub started with a simple vision: to bring the rich heritage of Zimbabwean woodworking into the modern home. Founded in 2020, we set out to prove that local craftsmanship could stand side-by-side with international luxury.
+              Kombera Kombera Furnitures started with a simple vision: to bring the rich heritage of Zimbabwean woodworking into the modern home. Founded in 2020, we set out to prove that local craftsmanship could stand side-by-side with international luxury.
             </p>
           </div>
 

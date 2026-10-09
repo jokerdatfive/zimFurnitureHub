@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 260" width="900" height="260">
+      <defs>
+        <linearGradient id="v3_terra" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#D66847"/>
+          <stop offset="100%" stop-color="#A64325"/>
+        </linearGradient>
+      </defs>
+      <!-- Sculptural Curved Living Sofa / Lounge Monogram -->
+      <g transform="translate(60, 35)">
+        <!-- Stem 1: Soft rounded pillar -->
+        <rect x="25" y="20" width="22" height="150" rx="11" fill="#2C1E1A"/>
+        <!-- Sweeping Top Curve: Backrest of modular curved sofa -->
+        <path d="M 47 95 C 65 65, 105 35, 140 35 C 160 35, 170 48, 165 65 C 160 80, 140 95, 115 102 Z" fill="url(#v3_terra)"/>
+        <!-- Ergonomic Lower Curve: Floating seat cushion -->
+        <path d="M 47 105 C 75 110, 115 125, 135 155 C 145 168, 138 175, 125 175 C 105 175, 80 155, 47 115 Z" fill="#2C1E1A"/>
+        <!-- Stem 2: Complementary curved pillar -->
+        <rect x="110" y="45" width="20" height="125" rx="10" fill="#2C1E1A"/>
+        <!-- Second K Sweeping Top Ribbon -->
+        <path d="M 130 95 C 145 70, 175 48, 200 48 C 215 48, 222 58, 218 72 C 214 84, 195 98, 175 103 Z" fill="url(#v3_terra)"/>
+        <!-- Second K Sweeping Lower Ribbon -->
+        <path d="M 130 105 C 150 112, 185 128, 202 152 C 210 163, 204 172, 192 172 C 175 172, 155 155, 130 115 Z" fill="#2C1E1A"/>
+      </g>
+      <!-- Wordmark Typography -->
+      <text x="325" y="125" font-family="'Segoe UI', 'Montserrat', 'Helvetica Neue', sans-serif" font-weight="800" font-size="68" fill="#2C1E1A" letter-spacing="3">KK</text>
+      <text x="455" y="125" font-family="'Segoe UI', 'Montserrat', 'Helvetica Neue', sans-serif" font-weight="300" font-size="62" fill="#B85334" letter-spacing="6">FURNITURES</text>
+      <line x1="328" y1="152" x2="840" y2="152" stroke="#E2E8F0" stroke-width="2"/>
+      <line x1="328" y1="152" x2="435" y2="152" stroke="#B85334" stroke-width="3"/>
+      <text x="328" y="180" font-family="'Segoe UI', 'Montserrat', 'Helvetica Neue', sans-serif" font-weight="600" font-size="15" fill="#78716C" letter-spacing="9">CONTEMPORARY ORGANIC LIVING</text>
+    </svg>
