@@ -2,6 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import { AddToCartButton } from "@/components/add-to-cart-button";
+import { getFallbackProductBySlug } from "@/lib/catalog-data";
 
 export default async function ProductDetailPage({
   params,
@@ -12,33 +13,61 @@ export default async function ProductDetailPage({
   let product: any = null;
 
   try {
-    const supabase = await createClient();
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      const supabase = await createClient();
 
-    const { data } = await supabase
-      .from("products")
-      .select(`
-        id,
-        name,
-        slug,
-        description,
-        base_price,
-        categories (
-          name
-        ),
-        product_variants (
-          sku,
+      const { data, error } = await supabase
+        .from("products")
+        .select(`
+          id,
           name,
-          price,
-          image_url,
-          stock_quantity
-        )
-      `)
-      .eq("slug", slug)
-      .single();
-      
-    product = data;
+          slug,
+          description,
+          base_price,
+          categories (
+            name
+          ),
+          product_variants (
+            sku,
+            name,
+            price,
+            image_url,
+            stock_quantity
+          )
+        `)
+        .eq("slug", slug)
+        .single();
+        
+      if (!error && data) {
+        product = data;
+      }
+    }
   } catch (err) {
-    console.error("Failed to fetch product detail:", err);
+    console.warn("Supabase not available for product detail, trying fallback:", err);
+  }
+
+  // Gracefully fallback to curated stock product
+  if (!product) {
+    const fallback = getFallbackProductBySlug(slug);
+    if (fallback) {
+      product = {
+        id: fallback.id,
+        name: fallback.name,
+        slug: fallback.slug,
+        description: fallback.description,
+        base_price: fallback.base_price,
+        categories: { name: fallback.category_name },
+        product_variants: [
+          {
+            sku: fallback.slug.toUpperCase(),
+            name: "Standard",
+            price: fallback.base_price,
+            image_url: fallback.image_url,
+            stock_quantity: fallback.stock_quantity,
+          },
+        ],
+      };
+    }
   }
 
   if (!product) {

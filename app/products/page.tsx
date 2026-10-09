@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { ProductCard } from "@/components/product-card";
+import { getFallbackProducts, CATALOG_CATEGORIES } from "@/lib/catalog-data";
 
 export const metadata = {
   title: "Shop All Collections | Kombera Kombera Furnitures",
@@ -16,65 +17,74 @@ export default async function ProductsPage({
   let categoryName = "All Collections";
 
   try {
-    const supabase = await createClient();
-    
-    let query = supabase
-      .from('products')
-      .select(`
-        id,
-        name,
-        slug,
-        base_price,
-        product_variants (
-          image_url
-        ),
-        categories!inner (
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      const supabase = await createClient();
+      
+      let query = supabase
+        .from('products')
+        .select(`
+          id,
           name,
-          slug
-        )
-      `);
+          slug,
+          base_price,
+          product_variants (
+            image_url
+          ),
+          categories!inner (
+            name,
+            slug
+          )
+        `);
 
-    if (category) {
-      query = query.eq('categories.slug', category);
+      if (category) {
+        query = query.eq('categories.slug', category);
+      }
+
+      if (q) {
+        query = query.ilike('name', `%${q}%`);
+      }
+
+      const { data: productsData, error } = await query.order('created_at', { ascending: false });
+      const products = (productsData || []) as any[];
+
+      if (!error && products && products.length > 0) {
+        displayProducts = products.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          slug: p.slug,
+          price: p.base_price,
+          image: p.product_variants?.[0]?.image_url || "/images/product-sofa.jpg"
+        }));
+
+        if (category) {
+          const cat = products[0].categories as any;
+          categoryName = Array.isArray(cat) ? cat[0]?.name : cat?.name;
+        }
+      }
     }
+  } catch (err: any) {
+    console.warn("Supabase not available, using curated stock fallback:", err?.message);
+  }
 
-    if (q) {
-      query = query.ilike('name', `%${q}%`);
-    }
-
-    const { data: productsData, error } = await query.order('created_at', { ascending: false });
-    const products = (productsData || []) as any[];
-
-    if (error) {
-      console.error("Error fetching products:", error);
-    }
-
-    if (category && products && products.length > 0) {
-      const cat = products[0].categories as any;
-      categoryName = Array.isArray(cat) ? cat[0]?.name : cat?.name;
-    } else if (q) {
-      categoryName = `Search results for "${q}"`;
-    } else if (category) {
-       // If category is provided but no products, we can try to fetch the category name separately or just show the slug
-       categoryName = category.charAt(0).toUpperCase() + category.slice(1).replace(/-/g, ' ');
-    }
-
-    displayProducts = products?.map((p: any) => ({
+  // Gracefully fallback to curated stock products if database is unconfigured or empty
+  if (displayProducts.length === 0) {
+    const fallbackList = getFallbackProducts({ category, q });
+    displayProducts = fallbackList.map((p) => ({
       id: p.id,
       name: p.name,
       slug: p.slug,
       price: p.base_price,
-      image: p.product_variants?.[0]?.image_url || "/images/product-sofa.jpg"
-    })) || [];
-  } catch (err: any) {
-    console.error("Failed to load products:", err);
-    return (
-      <div className="pt-32 pb-20 text-center bg-destructive/5 min-h-screen">
-        <h3 className="text-xl font-serif text-destructive">Database Connection Error</h3>
-        <p className="text-muted-foreground text-sm mt-2">{err.message || "Unknown error occurred"}</p>
-        <p className="text-xs mt-4">Make sure NEXT_PUBLIC_SUPABASE_URL and ANON_KEY are set in Vercel.</p>
-      </div>
-    );
+      image: p.image_url,
+    }));
+
+    if (category) {
+      const matchedCat = CATALOG_CATEGORIES.find((c) => c.slug.toLowerCase() === category.toLowerCase());
+      categoryName = matchedCat ? matchedCat.name : category.charAt(0).toUpperCase() + category.slice(1).replace(/-/g, ' ');
+    }
+  }
+
+  if (q) {
+    categoryName = `Search results for "${q}"`;
   }
 
   return (

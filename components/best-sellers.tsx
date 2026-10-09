@@ -1,55 +1,52 @@
 import { createClient } from "@/utils/supabase/server";
 import { ProductCard } from "@/components/product-card";
+import { getFallbackProducts } from "@/lib/catalog-data";
 
 export async function BestSellers() {
   let displayProducts: any[] = [];
 
   try {
-    const supabase = await createClient();
-    
-    const { data: products, error } = await supabase
-      .from('products')
-      .select(`
-        id,
-        name,
-        slug,
-        base_price,
-        product_variants (
-          image_url
-        )
-      `)
-      .eq('is_featured', true)
-      .limit(8);
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      const supabase = await createClient();
+      
+      const { data: products, error } = await supabase
+        .from('products')
+        .select(`
+          id,
+          name,
+          slug,
+          base_price,
+          product_variants (
+            image_url
+          )
+        `)
+        .eq('is_featured', true)
+        .limit(8);
 
-    if (error) {
-      console.error("Error fetching featured products:", error);
+      if (!error && products && products.length > 0) {
+        displayProducts = products.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          slug: p.slug,
+          price: p.base_price,
+          image: p.product_variants?.[0]?.image_url || "/images/product-sofa.jpg"
+        }));
+      }
     }
+  } catch (err: any) {
+    console.warn("Supabase not available, using curated bestsellers fallback:", err?.message);
+  }
 
-    displayProducts = products?.map((p: any) => ({
+  // Gracefully fallback to curated stock products if database is unconfigured or empty
+  if (displayProducts.length === 0) {
+    const fallbackList = getFallbackProducts({ featuredOnly: true });
+    displayProducts = fallbackList.map((p) => ({
       id: p.id,
       name: p.name,
       slug: p.slug,
       price: p.base_price,
-      image: p.product_variants?.[0]?.image_url || "/images/product-sofa.jpg"
-    })) || [];
-  } catch (err: any) {
-    console.error("Failed to load BestSellers:", err);
-    return (
-      <div className="py-20 text-center border-t border-border bg-destructive/5">
-        <h3 className="text-xl font-serif text-destructive">Database Connection Error</h3>
-        <p className="text-muted-foreground text-sm mt-2">{err.message || "Unknown error occurred"}</p>
-        <p className="text-xs mt-4">Make sure NEXT_PUBLIC_SUPABASE_URL and ANON_KEY are set in Vercel.</p>
-      </div>
-    );
-  }
-
-  if (displayProducts.length === 0) {
-    return (
-      <div className="py-20 text-center border-t border-border">
-        <h3 className="text-xl font-serif">No featured products found.</h3>
-        <p className="text-muted-foreground">Please check if 'is_featured' is set to true in the database.</p>
-      </div>
-    );
+      image: p.image_url,
+    }));
   }
 
   return (

@@ -2,43 +2,38 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
-
-const FALLBACK_IMAGES = [
-  "/images/collection-sofas.jpg",
-  "/images/collection-dining.jpg",
-  "/images/collection-bedroom.jpg",
-];
+import { CATALOG_CATEGORIES } from "@/lib/catalog-data";
 
 export async function FeaturedCollections() {
   let displayCollections: any[] = [];
 
   try {
-    const supabase = await createClient();
-    const { data: categories } = await supabase.from('categories').select('*').limit(3);
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      const supabase = await createClient();
+      const { data: categories, error } = await supabase.from('categories').select('*').limit(3);
+      if (!error && categories && categories.length > 0) {
+        displayCollections = categories.map((cat: any, index: number) => ({
+          id: cat.id,
+          title: cat.name,
+          description: cat.description,
+          slug: cat.slug,
+          image: CATALOG_CATEGORIES[index % CATALOG_CATEGORIES.length]?.image_url || "/images/collection-sofas.jpg",
+        }));
+      }
+    }
+  } catch (err: any) {
+    console.warn("Supabase not available, using curated collections fallback:", err?.message);
+  }
 
-    displayCollections = categories?.map((cat: any, index: number) => ({
+  // Seamless fallback to rich curated collections
+  if (displayCollections.length === 0) {
+    displayCollections = CATALOG_CATEGORIES.map((cat) => ({
       id: cat.id,
       title: cat.name,
       description: cat.description,
       slug: cat.slug,
-      image: FALLBACK_IMAGES[index % FALLBACK_IMAGES.length],
-    })) || [];
-  } catch (err: any) {
-    console.error("Failed to load FeaturedCollections:", err);
-    return (
-      <div className="py-20 text-center bg-destructive/5">
-        <h3 className="text-xl font-serif text-destructive">Database Connection Error</h3>
-        <p className="text-muted-foreground text-sm mt-2">{err.message || "Unknown error occurred"}</p>
-      </div>
-    );
-  }
-
-  if (displayCollections.length === 0) {
-    return (
-      <div className="py-20 text-center bg-secondary/10">
-        <h3 className="text-xl font-serif">No collections found in database.</h3>
-      </div>
-    );
+      image: cat.image_url,
+    }));
   }
 
   return (
