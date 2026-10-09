@@ -2,11 +2,11 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { Search, ShoppingCart, Menu, X } from "lucide-react";
 import { useCart } from "@/lib/cart-context";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { BrandLogo } from "@/components/brand-logo";
 
 export function Navigation() {
   const router = useRouter();
@@ -33,30 +33,15 @@ export function Navigation() {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
-      <nav className="mx-auto max-w-7xl px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border transition-all">
+      <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 sm:h-20 items-center justify-between gap-4">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3">
-            <div className="relative h-10 flex items-center">
-              <Image
-                src="/branding/01_logo_horizontal_transparent.svg"
-                alt="Kombera Kombera Furnitures"
-                width={165}
-                height={48}
-                priority
-                className="h-8 sm:h-9 w-auto object-contain dark:hidden"
-              />
-              <Image
-                src="/branding/02_logo_horizontal_white_transparent.svg"
-                alt="Kombera Kombera Furnitures"
-                width={165}
-                height={48}
-                priority
-                className="h-8 sm:h-9 w-auto object-contain hidden dark:block"
-              />
-            </div>
-            <span className="sr-only">Kombera Kombera Furnitures</span>
+          <Link
+            href="/"
+            className="flex items-center shrink-0 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded-sm"
+          >
+            <BrandLogo variant="navbar" />
           </Link>
 
           {/* Desktop Navigation */}

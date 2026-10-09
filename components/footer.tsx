@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Image from "next/image";
+import { BrandLogo } from "@/components/brand-logo";
 import { Facebook, Instagram, Twitter, Mail, Phone, MapPin } from "lucide-react";
 
 export function Footer() {
@@ -9,21 +9,8 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 lg:gap-12">
           {/* Brand and About */}
           <div className="col-span-1 md:col-span-1">
-            <Link href="/" className="inline-block">
-              <Image
-                src="/branding/01_logo_horizontal_transparent.svg"
-                alt="Kombera Kombera Furnitures"
-                width={170}
-                height={50}
-                className="h-9 w-auto object-contain dark:hidden"
-              />
-              <Image
-                src="/branding/02_logo_horizontal_white_transparent.svg"
-                alt="Kombera Kombera Furnitures"
-                width={170}
-                height={50}
-                className="h-9 w-auto object-contain hidden dark:block"
-              />
+            <Link href="/" className="inline-block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded-sm">
+              <BrandLogo variant="footer" />
             </Link>
             <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
               Kombera Kombera Furnitures — Elevating homes with contemporary organic living, handcrafted excellence, and timeless design.
