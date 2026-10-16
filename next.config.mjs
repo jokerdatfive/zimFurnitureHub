@@ -7,6 +7,18 @@ const nextConfig = {
     unoptimized: true,
   },
   allowedDevOrigins: ['192.168.1.147'],
+  async rewrites() {
+    return [
+      {
+        source: '/webhook',
+        destination: '/api/whatsapp/webhook',
+      },
+      {
+        source: '/api/webhook',
+        destination: '/api/whatsapp/webhook',
+      },
+    ]
+  },
 }
 
 export default nextConfig
