@@ -27,24 +27,23 @@ export function ShoppingCart() {
 
   const subtotal = getSubtotal();
 
-  const onCheckout = async () => {
+  const onCheckout = () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items }),
+      const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "263770000000";
+      
+      let message = `Hello Kombera Kombera Furnitures, I would like to order the following:\n\n`;
+      items.forEach((item, index) => {
+        message += `${index + 1}. *${item.name}* x ${item.quantity} - $${(item.price * item.quantity).toLocaleString()}\n`;
       });
-      
-      const data = await response.json();
-      
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        console.error("Checkout failed:", data.error);
-      }
+      message += `\n*Total Amount:* $${subtotal.toLocaleString()}`;
+      message += `\n\nPlease let me know availability and payment / layby options.`;
+
+      const encodedMsg = encodeURIComponent(message);
+      const url = `https://wa.me/${whatsappNumber.replace(/[^0-9]/g, '')}?text=${encodedMsg}`;
+      window.open(url, '_blank');
     } catch (error) {
-      console.error("Error during checkout:", error);
+      console.error("Error initiating WhatsApp checkout:", error);
     } finally {
       setIsLoading(false);
     }
@@ -167,11 +166,11 @@ export function ShoppingCart() {
               Shipping and taxes calculated at checkout
             </p>
             <Button 
-              className="w-full h-12 text-sm font-medium tracking-wide"
+              className="w-full h-12 text-sm font-medium tracking-wide bg-emerald-600 hover:bg-emerald-700 text-white"
               onClick={onCheckout}
               disabled={isLoading || items.length === 0}
             >
-              {isLoading ? "Processing..." : "Proceed to Visa Checkout"}
+              {isLoading ? "Opening WhatsApp..." : "Order via WhatsApp"}
             </Button>
             <Button
               variant="ghost"

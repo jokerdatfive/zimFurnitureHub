@@ -19,8 +19,9 @@ export function Navigation() {
   const navLinks = [
     { href: "/products?category=living-room", label: "Living" },
     { href: "/products?category=bedroom", label: "Bedroom" },
-    { href: "/products?category=dining-room", label: "Dining" },
+    { href: "/products?category=kitchen-dining", label: "Kitchen & Dining" },
     { href: "/about", label: "Our Story" },
+    { href: "/admin/messages", label: "Dashboard" },
   ];
 
   const handleSearch = (e: FormEvent) => {

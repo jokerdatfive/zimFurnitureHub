@@ -1,8 +1,8 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import { Plus, Trash2, Package, LayoutDashboard } from "lucide-react";
+import { Plus, Trash2, Package, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { addProduct, deleteProduct } from "./actions";
+import { addProduct, deleteProduct, toggleProductStock } from "./actions";
 import Image from "next/image";
 
 export default async function AdminPage() {
@@ -14,7 +14,7 @@ export default async function AdminPage() {
     redirect("/login");
   }
 
-  // Fetch products and categories
+  // Fetch products, categories, and stock variants
   const { data: products } = await supabase
     .from("products")
     .select(`
@@ -22,24 +22,24 @@ export default async function AdminPage() {
       name,
       base_price,
       is_featured,
-      categories (name)
+      categories (name),
+      product_variants (id, stock_quantity)
     `)
     .order("created_at", { ascending: false });
 
   const { data: categories } = await supabase.from("categories").select("id, name");
 
   return (
-    <div className="pt-24 pb-16 bg-background min-h-screen">
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-12 pb-8 border-b border-border">
-          <div>
-            <h1 className="font-serif text-4xl font-semibold text-foreground flex items-center gap-3">
-              <LayoutDashboard className="h-8 w-8 text-primary" />
-              Admin Panel
-            </h1>
-            <p className="mt-2 text-muted-foreground">Manage your furniture inventory and stock details.</p>
-          </div>
+    <div>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 pb-6 border-b border-border">
+        <div>
+          <h1 className="font-serif text-3xl font-semibold text-foreground flex items-center gap-3">
+            <Package className="h-7 w-7 text-primary" />
+            Inventory & Stock
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">Manage your showroom and warehouse furniture stock.</p>
         </div>
+      </div>
 
         <div className="grid lg:grid-cols-3 gap-12">
           {/* Add Product Form */}
@@ -110,40 +110,81 @@ export default async function AdminPage() {
                     <th className="px-6 py-4">Product</th>
                     <th className="px-6 py-4">Category</th>
                     <th className="px-6 py-4">Price</th>
+                    <th className="px-6 py-4">Stock Status</th>
                     <th className="px-6 py-4">Featured</th>
                     <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {products?.map((product: any) => (
-                    <tr key={product.id} className="hover:bg-secondary/10 transition-colors">
-                      <td className="px-6 py-4 text-sm font-medium text-foreground">{product.name}</td>
-                      <td className="px-6 py-4 text-sm text-muted-foreground">{product.categories?.name}</td>
-                      <td className="px-6 py-4 text-sm text-foreground">${product.base_price.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-sm">
-                        {product.is_featured ? (
-                          <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">Yes</span>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">No</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <form action={async (formData) => {
-                          "use server";
-                          const id = formData.get("id") as string;
-                          await deleteProduct(id);
-                        }}>
-                          <input type="hidden" name="id" value={product.id} />
-                          <button type="submit" className="text-muted-foreground hover:text-destructive transition-colors">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </form>
-                      </td>
-                    </tr>
-                  ))}
+                  {products?.map((product: any) => {
+                    const variant = product.product_variants?.[0];
+                    const stock = variant?.stock_quantity ?? 0;
+                    const isSoldOut = stock <= 0;
+
+                    return (
+                      <tr key={product.id} className="hover:bg-secondary/10 transition-colors">
+                        <td className="px-6 py-4 text-sm font-medium text-foreground">{product.name}</td>
+                        <td className="px-6 py-4 text-sm text-muted-foreground">{product.categories?.name}</td>
+                        <td className="px-6 py-4 text-sm text-foreground">${product.base_price.toLocaleString()}</td>
+                        <td className="px-6 py-4 text-sm">
+                          {variant ? (
+                            <form
+                              action={async () => {
+                                "use server";
+                                await toggleProductStock(variant.id, stock);
+                              }}
+                            >
+                              <button
+                                type="submit"
+                                title="Click to toggle stock status"
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                                  isSoldOut
+                                    ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20"
+                                    : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
+                                }`}
+                              >
+                                {isSoldOut ? (
+                                  <>
+                                    <X className="h-3 w-3" />
+                                    <span>Sold Out</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Check className="h-3 w-3" />
+                                    <span>In Stock ({stock})</span>
+                                  </>
+                                )}
+                              </button>
+                            </form>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          {product.is_featured ? (
+                            <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">Yes</span>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">No</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <form action={async (formData) => {
+                            "use server";
+                            const id = formData.get("id") as string;
+                            await deleteProduct(id);
+                          }}>
+                            <input type="hidden" name="id" value={product.id} />
+                            <button type="submit" className="text-muted-foreground hover:text-destructive transition-colors">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </form>
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {(!products || products.length === 0) && (
                     <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
+                      <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
                         No products found in inventory.
                       </td>
                     </tr>
@@ -154,6 +195,5 @@ export default async function AdminPage() {
           </div>
         </div>
       </div>
-    </div>
   );
 }

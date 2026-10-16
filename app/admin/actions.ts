@@ -72,3 +72,22 @@ export async function deleteProduct(productId: string) {
   revalidatePath("/products");
   return { success: true };
 }
+
+export async function toggleProductStock(variantId: string, currentStock: number) {
+  const supabase = await createClient();
+  const newStock = currentStock > 0 ? 0 : 5;
+
+  const { error } = await supabase
+    .from("product_variants")
+    .update({ stock_quantity: newStock })
+    .eq("id", variantId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/products");
+  return { success: true };
+}
+
