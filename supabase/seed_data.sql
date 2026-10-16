@@ -73,7 +73,7 @@ INSERT INTO public.product_variants (product_id, sku, name, price, stock_quantit
 ('b3000000-0000-0000-0000-000000000002', 'KMB-KIT-DRS-200', 'Standard', 200.00, 10, '/images/products/kombera-urban-slate-kitchen-dresser-microwave-hutch-200.jpg'),
 ('b3000000-0000-0000-0000-000000000003', 'KMB-KIT-2PC-340', 'Standard', 340.00, 6, '/images/products/kombera-2pc-washed-oak-modular-kitchen-pantry-hutch-340.jpg'),
 ('b3000000-0000-0000-0000-000000000004', 'KMB-KIT-5DG-340', 'Standard', 340.00, 5, '/images/products/kombera-5-door-slate-grey-kitchen-combo-glass-wine-rack-340.jpg'),
-('b3000000-0000-0000-0000-000000000005', 'KMB-KIT-3PC-380', 'Standard', 380.00, 5, '/images/products/kombera-3pc-washed-oak-modular-kitchen-suite-380.jpg')
+('b3000000-0000-0000-0000-000000000005', 'KMB-KIT-3PC-380', 'Standard', 380.00, 5, '/images/products/kombera-3pc-washed-oak-modular-kitchen-suite-380-v2.jpg')
 ON CONFLICT (sku) DO UPDATE SET
   price = EXCLUDED.price,
   image_url = EXCLUDED.image_url,

@@ -41,7 +41,7 @@ export const CATALOG_CATEGORIES: CatalogCategory[] = [
     name: "Kitchen & Dining",
     slug: "kitchen-dining",
     description: "Modular kitchen suites, pantry hutches, and crafted island servers.",
-    image_url: "/images/products/kombera-3pc-washed-oak-modular-kitchen-suite-380.jpg",
+    image_url: "/images/products/kombera-3pc-washed-oak-modular-kitchen-suite-380-v2.jpg",
   },
 ];
 
@@ -420,7 +420,7 @@ export const CATALOG_PRODUCTS: CatalogProduct[] = [
     "category_name": "Kitchen & Dining",
     "category_slug": "kitchen-dining",
     "is_featured": true,
-    "image_url": "/images/products/kombera-3pc-washed-oak-modular-kitchen-suite-380.jpg",
+    "image_url": "/images/products/kombera-3pc-washed-oak-modular-kitchen-suite-380-v2.jpg",
     "stock_quantity": 5,
     "sku": "KMB-KIT-3PC-380"
   }
