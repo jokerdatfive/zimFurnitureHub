@@ -113,20 +113,25 @@ export async function POST(req: NextRequest) {
     }
 
     const key = messageItem.key || {};
-    const remoteJid: string = key.remoteJid || '';
+    const rawRemoteJid: string = key.remoteJid || '';
+    const remoteJidAlt: string = key.remoteJidAlt || key.participantAlt || '';
     const fromMe: boolean = Boolean(key.fromMe);
     const evolutionMessageId: string = key.id || `gen_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const pushName: string = messageItem.pushName || '';
 
     // Ignore Group Chats (@g.us) and Status Broadcasts (status@broadcast)
     if (IGNORE_GROUPS) {
-      if (remoteJid.endsWith('@g.us') || remoteJid.includes('@broadcast') || remoteJid === 'status@broadcast') {
+      if (rawRemoteJid.endsWith('@g.us') || rawRemoteJid.includes('@broadcast') || rawRemoteJid === 'status@broadcast') {
         return NextResponse.json({ received: true, filtered: 'group_or_status_message' }, { status: 200 });
       }
     }
 
-    // Clean phone number from remoteJid (e.g., 263770000000@s.whatsapp.net -> 263770000000)
-    const phoneNumber = remoteJid.split('@')[0].replace(/\D/g, '');
+    // In Baileys v6 / WhatsApp Multi-Device, if remoteJid ends with @lid, the actual phone number is in remoteJidAlt
+    const effectiveJid = (rawRemoteJid.endsWith('@lid') && remoteJidAlt.includes('@s.whatsapp.net'))
+      ? remoteJidAlt
+      : rawRemoteJid;
+
+    const phoneNumber = (remoteJidAlt ? remoteJidAlt.split('@')[0] : rawRemoteJid.split('@')[0]).replace(/\D/g, '');
     const { text: contentText, messageType } = extractMessageContent(messageItem.message);
 
     // 4. Atomic Upsert of Contact into Supabase
@@ -134,8 +139,8 @@ export async function POST(req: NextRequest) {
       .from('wa_contacts')
       .upsert(
         {
-          remote_jid: remoteJid,
-          phone_number: phoneNumber,
+          remote_jid: effectiveJid,
+          phone_number: phoneNumber || 'unknown',
           push_name: pushName || undefined,
           last_message_at: new Date().toISOString(),
         },
@@ -173,7 +178,22 @@ export async function POST(req: NextRequest) {
     }
 
     // 6. Schedule Asynchronous AI Qualification
-    if (!fromMe && contentText && !contentText.startsWith('[')) {
+    // Qualify if it's incoming (!fromMe), OR if it's a test inquiry from the user
+    const isTestInquiry = Boolean(
+      fromMe &&
+      contentText &&
+      (contentText.toLowerCase().includes('sofa') ||
+       contentText.toLowerCase().includes('table') ||
+       contentText.toLowerCase().includes('bed') ||
+       contentText.toLowerCase().includes('chair') ||
+       contentText.toLowerCase().includes('price') ||
+       contentText.toLowerCase().includes('cost') ||
+       contentText.toLowerCase().includes('furniture') ||
+       contentText.toLowerCase().includes('hi') ||
+       contentText.toLowerCase().includes('hello'))
+    );
+
+    if ((!fromMe || isTestInquiry) && contentText && !contentText.startsWith('[')) {
       const runAiQualification = async () => {
         try {
           await analyzeLeadMessage(contact.id, messageRecord.id, contentText, contact.push_name);

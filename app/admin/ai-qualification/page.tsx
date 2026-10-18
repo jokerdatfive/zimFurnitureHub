@@ -53,6 +53,20 @@ export default function AiQualificationPage() {
   // 2. Fetch Initial Contacts & Message Counts
   const loadDashboardData = useCallback(async () => {
     try {
+      // 1. Prioritize reliable server API route
+      const res = await fetch('/api/admin/contacts', { cache: 'no-store' });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.contacts)) {
+          setContacts(json.contacts as WaContact[]);
+          if (typeof json.totalMessagesCount === 'number') {
+            setTotalMessagesCount(json.totalMessagesCount);
+          }
+          return;
+        }
+      }
+
+      // 2. Fallback to direct client query
       const { data: contactsData, error: contactsError } = await supabaseClient
         .from('wa_contacts')
         .select('*')
@@ -70,7 +84,7 @@ export default function AiQualificationPage() {
         setTotalMessagesCount(count);
       }
     } catch (err) {
-      console.warn('Could not query contacts from Supabase client:', err);
+      console.warn('Could not query contacts:', err);
     }
   }, []);
 
@@ -78,7 +92,11 @@ export default function AiQualificationPage() {
     loadDashboardData();
     checkStatus();
 
-    const interval = setInterval(checkStatus, 30000);
+    // Poll status and dashboard data regularly for instant updates
+    const interval = setInterval(() => {
+      checkStatus();
+      loadDashboardData();
+    }, 10000);
     return () => clearInterval(interval);
   }, [loadDashboardData, checkStatus]);
 

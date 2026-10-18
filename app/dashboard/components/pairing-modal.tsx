@@ -1,17 +1,19 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Smartphone,
   QrCode,
   Copy,
   Check,
+  CheckCircle2,
   Loader2,
   X,
   AlertCircle,
   ShieldCheck,
   RefreshCw,
   Clock,
+  RotateCcw,
 } from 'lucide-react';
 
 interface PairingModalProps {
@@ -25,11 +27,14 @@ export function PairingModal({ isOpen, onClose, onSuccess }: PairingModalProps) 
   const [phoneNumber, setPhoneNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [qrLoading, setQrLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [qrBase64, setQrBase64] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(90);
+  const [qrCountdown, setQrCountdown] = useState(25);
+  const [isConnected, setIsConnected] = useState(false);
 
   // Fetch Live QR Code
   const fetchQr = useCallback(async () => {
@@ -40,6 +45,7 @@ export function PairingModal({ isOpen, onClose, onSuccess }: PairingModalProps) 
       const data = await res.json();
       if (data.qrBase64) {
         setQrBase64(data.qrBase64);
+        setQrCountdown(25);
       } else if (data.error) {
         setError(data.error);
       }
@@ -50,13 +56,74 @@ export function PairingModal({ isOpen, onClose, onSuccess }: PairingModalProps) 
     }
   }, []);
 
-  // Fetch QR on modal open
+  // Reset Session (clears stale 401/dead session keys on Evolution API)
+  const handleResetSession = async () => {
+    setResetting(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/evolution/pair', {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.qrBase64) {
+        setQrBase64(data.qrBase64);
+        setQrCountdown(25);
+      } else {
+        await fetchQr();
+      }
+    } catch {
+      setError('Failed to reset session. Please try again.');
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  // Initial load
   useEffect(() => {
     if (isOpen) {
       setError(null);
+      setIsConnected(false);
       fetchQr();
     }
   }, [isOpen, fetchQr]);
+
+  // QR Code Auto-Refresh Countdown (25s expiration prevention)
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'qr' || isConnected || qrLoading) return;
+
+    const interval = setInterval(() => {
+      setQrCountdown((prev) => {
+        if (prev <= 1) {
+          fetchQr();
+          return 25;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isOpen, activeTab, isConnected, qrLoading, fetchQr]);
+
+  // Poll connection status every 2.5 seconds while modal is open
+  useEffect(() => {
+    if (!isOpen || isConnected) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/evolution/status', { cache: 'no-store' });
+        const data = await res.json();
+        if (data.connected) {
+          setIsConnected(true);
+          if (onSuccess) onSuccess();
+          setTimeout(() => {
+            onClose();
+          }, 2500);
+        }
+      } catch {}
+    }, 2500);
+
+    return () => clearInterval(pollInterval);
+  }, [isOpen, isConnected, onSuccess, onClose]);
 
   // 90s countdown timer when pairing code is generated
   useEffect(() => {
@@ -100,7 +167,6 @@ export function PairingModal({ isOpen, onClose, onSuccess }: PairingModalProps) 
       }
 
       setPairingCode(data.formattedCode || data.code);
-      if (onSuccess) onSuccess();
     } catch (err: any) {
       setError(err.message || 'Something went wrong while generating the pairing code');
     } finally {
@@ -126,7 +192,7 @@ export function PairingModal({ isOpen, onClose, onSuccess }: PairingModalProps) 
             </div>
             <div>
               <h3 className="text-base font-semibold text-foreground">Link WhatsApp Gateway</h3>
-              <p className="text-xs text-muted-foreground">Pair your business WhatsApp line with AI</p>
+              <p className="text-xs text-muted-foreground">Pair your business WhatsApp line with KK Furnitures AI</p>
             </div>
           </div>
           <button
@@ -149,7 +215,7 @@ export function PairingModal({ isOpen, onClose, onSuccess }: PairingModalProps) 
             }`}
           >
             <QrCode className="w-4 h-4" />
-            <span>Instant QR Code (Recommended)</span>
+            <span>Instant QR Code (Fastest)</span>
           </button>
           <button
             type="button"
@@ -167,21 +233,47 @@ export function PairingModal({ isOpen, onClose, onSuccess }: PairingModalProps) 
 
         {/* Content */}
         <div className="p-6 space-y-5">
-          {error && (
-            <div className="flex items-start gap-2.5 p-3 text-xs rounded-xl bg-destructive/10 border border-destructive/20 text-destructive font-medium">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{error}</span>
+          {/* Success Message Banner */}
+          {isConnected && (
+            <div className="p-6 text-center space-y-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl animate-fade-in">
+              <div className="flex items-center justify-center w-14 h-14 mx-auto rounded-full bg-emerald-500/20 text-emerald-500">
+                <CheckCircle2 className="w-8 h-8 animate-bounce" />
+              </div>
+              <h4 className="text-base font-bold text-foreground">WhatsApp Linked Successfully!</h4>
+              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                Your WhatsApp number is now connected. KK Furnitures AI assistant is active and ready to handle customer inquiries.
+              </p>
+            </div>
+          )}
+
+          {!isConnected && error && (
+            <div className="flex flex-col gap-2 p-3.5 text-xs rounded-xl bg-destructive/10 border border-destructive/20 text-destructive font-medium">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleResetSession}
+                disabled={resetting}
+                className="self-end inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold bg-destructive/20 hover:bg-destructive/30 rounded-lg transition"
+              >
+                <RotateCcw className={`w-3 h-3 ${resetting ? 'animate-spin' : ''}`} />
+                <span>Reset WhatsApp Socket</span>
+              </button>
             </div>
           )}
 
           {/* TAB 1: QR CODE */}
-          {activeTab === 'qr' && (
+          {!isConnected && activeTab === 'qr' && (
             <div className="space-y-4 text-center">
               <div className="flex flex-col items-center justify-center p-6 bg-background border border-border rounded-2xl">
-                {qrLoading ? (
+                {qrLoading || resetting ? (
                   <div className="h-56 w-56 flex flex-col items-center justify-center gap-3">
                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                    <span className="text-xs text-muted-foreground">Generating live QR code...</span>
+                    <span className="text-xs text-muted-foreground">
+                      {resetting ? 'Clearing old session socket...' : 'Generating fresh QR code...'}
+                    </span>
                   </div>
                 ) : qrBase64 ? (
                   <div className="relative group">
@@ -200,15 +292,33 @@ export function PairingModal({ isOpen, onClose, onSuccess }: PairingModalProps) 
                   </div>
                 )}
 
-                <button
-                  type="button"
-                  onClick={fetchQr}
-                  disabled={qrLoading}
-                  className="inline-flex items-center gap-1.5 mt-4 px-3.5 py-1.5 text-xs font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border rounded-lg transition"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${qrLoading ? 'animate-spin' : ''}`} />
-                  <span>Refresh QR Code</span>
-                </button>
+                <div className="flex items-center gap-3 mt-4">
+                  <button
+                    type="button"
+                    onClick={fetchQr}
+                    disabled={qrLoading || resetting}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border rounded-lg transition"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${qrLoading ? 'animate-spin' : ''}`} />
+                    <span>Refresh QR</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleResetSession}
+                    disabled={resetting || qrLoading}
+                    title="Click if WhatsApp says 'Couldn't link device' or connection is denied"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/30 rounded-lg transition"
+                  >
+                    <RotateCcw className={`w-3.5 h-3.5 ${resetting ? 'animate-spin' : ''}`} />
+                    <span>Reset Stale Session</span>
+                  </button>
+                </div>
+
+                <div className="mt-2 text-[11px] text-muted-foreground flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-muted-foreground" />
+                  <span>Auto-refreshes in <strong>{qrCountdown}s</strong> to stay live</span>
+                </div>
               </div>
 
               {/* Instructions */}
@@ -224,14 +334,14 @@ export function PairingModal({ isOpen, onClose, onSuccess }: PairingModalProps) 
                 </div>
                 <div className="flex gap-2">
                   <span className="flex items-center justify-center w-4 h-4 rounded-full bg-primary/10 text-primary font-bold shrink-0 text-[10px]">3</span>
-                  <span>Point your phone camera at the QR code above &mdash; linked instantly!</span>
+                  <span>Scan the QR code above &mdash; your line connects instantly!</span>
                 </div>
               </div>
             </div>
           )}
 
           {/* TAB 2: 8-DIGIT PHONE CODE */}
-          {activeTab === 'code' && (
+          {!isConnected && activeTab === 'code' && (
             <div>
               {!pairingCode ? (
                 <form onSubmit={handleGenerateCode} className="space-y-4">

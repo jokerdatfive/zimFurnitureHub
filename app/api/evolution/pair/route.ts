@@ -76,3 +76,22 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export async function DELETE() {
+  try {
+    const { resetInstance } = await import('@/lib/evolution/client');
+    await resetInstance();
+    const result = await getQrCode();
+    return NextResponse.json({
+      success: true,
+      message: 'WhatsApp session reset successfully.',
+      qrBase64: result.qrBase64,
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: 'Failed to reset WhatsApp session', details: error.message },
+      { status: 500 }
+    );
+  }
+}
+

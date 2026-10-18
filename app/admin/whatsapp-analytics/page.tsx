@@ -1,5 +1,5 @@
-import DashboardPage from "@/app/dashboard/page";
+import { redirect } from "next/navigation";
 
 export default function AdminWhatsAppAnalyticsPage() {
-  return <DashboardPage />;
+  redirect("/admin/ai-qualification");
 }

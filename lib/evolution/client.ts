@@ -28,11 +28,14 @@ async function requestEvolution<T = any>(
   }
 
   const url = `${EVOLUTION_API_URL}${path.startsWith('/') ? path : `/${path}`}`;
-  const headers = {
-    'Content-Type': 'application/json',
+  const headers: Record<string, string> = {
     apikey: EVOLUTION_API_KEY,
-    ...(options.headers || {}),
+    ...(options.headers as Record<string, string> || {}),
   };
+
+  if (options.body) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   try {
     const res = await fetch(url, {
@@ -62,7 +65,7 @@ async function requestEvolution<T = any>(
       success: false,
       status: 500,
       data: null,
-      error: err.message || 'Network error connecting to Hugging Face Evolution Space',
+      error: err.message || 'Network error connecting to Evolution API server',
     };
   }
 }
@@ -132,7 +135,7 @@ export async function ensureInstanceExists(
       body: JSON.stringify({
         instanceName,
         token: process.env.WEBHOOK_SECRET || 'whsec_kk_furnitures_webhook_token',
-        qrcode: false,
+        qrcode: true,
         integration: 'WHATSAPP-BAILEYS',
         reject_call: false,
         groups_ignore: true,
@@ -166,6 +169,34 @@ export async function restartInstance(
 }
 
 /**
+ * Deletes an instance to purge stale or corrupt WhatsApp connection sessions
+ */
+export async function deleteInstance(
+  instanceName: string = DEFAULT_INSTANCE
+): Promise<boolean> {
+  try {
+    const res = await requestEvolution(
+      `/instance/delete/${encodeURIComponent(instanceName)}`,
+      { method: 'DELETE' }
+    );
+    return res.success;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Completely resets the instance by deleting and recreating it with a fresh socket
+ */
+export async function resetInstance(
+  instanceName: string = DEFAULT_INSTANCE
+): Promise<boolean> {
+  await deleteInstance(instanceName);
+  await new Promise((resolve) => setTimeout(resolve, 800));
+  return ensureInstanceExists(instanceName);
+}
+
+/**
  * Retrieves the live WhatsApp QR code (base64 image) for instant camera scanning.
  */
 export async function getQrCode(
@@ -184,6 +215,17 @@ export async function getQrCode(
     const res = await requestEvolution<{ base64?: string; code?: string; count?: number }>(
       `/instance/connect/${encodeURIComponent(instanceName)}`
     );
+
+    // If session has expired or exceeded QR regeneration count, reset the instance
+    if (res.data?.count && res.data.count >= 25) {
+      await resetInstance(instanceName);
+      const retryRes = await requestEvolution<{ base64?: string; code?: string; count?: number }>(
+        `/instance/connect/${encodeURIComponent(instanceName)}`
+      );
+      if (retryRes.success && retryRes.data?.base64) {
+        return { success: true, qrBase64: retryRes.data.base64, state: 'connecting' };
+      }
+    }
 
     if (res.success && res.data?.base64) {
       return { success: true, qrBase64: res.data.base64, state: stateCheck.state };
@@ -225,9 +267,29 @@ export async function requestPairingCode(
     }
   } catch {}
 
-  const res = await requestEvolution<{ pairingCode?: string; code?: string; base64?: string }>(
+  let res = await requestEvolution<{ pairingCode?: string; code?: string; base64?: string }>(
     `/instance/connect/${encodeURIComponent(instanceName)}?number=${encodeURIComponent(cleanPhone)}`
   );
+
+  // If pairingCode returned null or empty, recreate the instance configured specifically for this phone number
+  if (!res.data?.pairingCode || String(res.data.pairingCode).trim() === 'null') {
+    await deleteInstance(instanceName);
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await requestEvolution('/instance/create', {
+      method: 'POST',
+      body: JSON.stringify({
+        instanceName,
+        integration: 'WHATSAPP-BAILEYS',
+        token: process.env.WEBHOOK_SECRET || 'whsec_kk_furnitures_webhook_token',
+        number: cleanPhone,
+        qrcode: true,
+      }),
+    });
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    res = await requestEvolution<{ pairingCode?: string; code?: string; base64?: string }>(
+      `/instance/connect/${encodeURIComponent(instanceName)}?number=${encodeURIComponent(cleanPhone)}`
+    );
+  }
 
   if (!res.success) {
     return { success: false, error: res.error || 'Failed to request pairing code from Evolution API.' };
@@ -247,7 +309,7 @@ export async function requestPairingCode(
     return {
       success: false,
       qrBase64,
-      error: 'Evolution API did not return an 8-digit pairing code. Please ensure your WhatsApp phone number includes the international country code (e.g. +263 77... without leading zero). You can also scan the QR code to pair immediately.',
+      error: 'WhatsApp did not return an 8-digit pairing code for this number. Please ensure the phone number is active on WhatsApp with country code (e.g. +263 77...), or scan the live QR code directly with your phone camera.',
     };
   }
 

@@ -47,6 +47,21 @@ export function ChatInspector({
     setLoadingMessages(true);
 
     const fetchThread = async () => {
+      try {
+        const res = await fetch(`/api/admin/contacts?contactId=${encodeURIComponent(contact.id)}`, { cache: 'no-store' });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && Array.isArray(json.messages)) {
+            if (isMounted) {
+              setMessages(json.messages as WaMessage[]);
+              setLoadingMessages(false);
+              setTimeout(scrollToBottom, 100);
+            }
+            return;
+          }
+        }
+      } catch {}
+
       const { data, error } = await supabaseClient
         .from('wa_messages')
         .select('*')
