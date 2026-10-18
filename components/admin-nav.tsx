@@ -16,12 +16,6 @@ export function AdminNav() {
       badge: "AI",
     },
     {
-      name: "WhatsApp Inbox",
-      href: "/admin/messages",
-      icon: MessageSquare,
-      badge: "Live",
-    },
-    {
       name: "Leads",
       href: "/admin/leads",
       icon: Users,

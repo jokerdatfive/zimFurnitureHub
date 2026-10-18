@@ -5,7 +5,7 @@ import type { WaContact } from '@/lib/db/types';
 import { supabaseClient } from '@/lib/db/supabase-client';
 import { KpiCards } from '@/app/dashboard/components/kpi-cards';
 import { LeadPipeline } from '@/app/dashboard/components/lead-pipeline';
-import { ChatInspector } from '@/app/dashboard/components/chat-inspector';
+import { LeadActionModal } from '@/app/dashboard/components/lead-action-modal';
 import { PairingModal } from '@/app/dashboard/components/pairing-modal';
 import { Sparkles, RefreshCw, QrCode, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -223,12 +223,11 @@ export default function AiQualificationPage() {
         />
       </div>
 
-      {/* Slide-Over Chat Inspector */}
+      {/* Lead Action & Stock Integration Modal */}
       {selectedContact && (
-        <ChatInspector
+        <LeadActionModal
           contact={selectedContact}
           onClose={() => setSelectedContact(null)}
-          onContactUpdated={loadDashboardData}
         />
       )}
 
