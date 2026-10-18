@@ -13,10 +13,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const cleanPhone = phoneNumber.replace(/\D/g, '');
+    let cleanPhone = phoneNumber.replace(/\D/g, '');
+    if (cleanPhone.startsWith('0') && cleanPhone.length === 10) {
+      cleanPhone = '263' + cleanPhone.slice(1);
+    }
+
     if (cleanPhone.length < 8 || cleanPhone.length > 16) {
       return NextResponse.json(
-        { error: 'Invalid phone number length. Please include international country code (e.g. +263... or +1...).' },
+        { error: 'Invalid phone number length. Please include international country code (e.g. +263... for Zimbabwe or +1...).' },
         { status: 400 }
       );
     }

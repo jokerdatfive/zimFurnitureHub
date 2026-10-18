@@ -102,7 +102,7 @@ export function PairingModal({ isOpen, onClose, onSuccess }: PairingModalProps) 
                   />
                 </div>
                 <p className="mt-1.5 text-xs text-slate-500">
-                  Include international country code without spaces or dashes.
+                  Include international code (e.g. +263 77... for Zimbabwe). Local format (077...) will be converted automatically.
                 </p>
               </div>
 

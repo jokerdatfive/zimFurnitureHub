@@ -112,31 +112,121 @@ export async function getInstanceConnectionState(
 }
 
 /**
+ * Ensures that the WhatsApp instance exists on Evolution API, creating it if missing.
+ */
+export async function ensureInstanceExists(
+  instanceName: string = DEFAULT_INSTANCE
+): Promise<boolean> {
+  try {
+    const listRes = await requestEvolution<any[]>('/instance/fetchInstances');
+    const existing = Array.isArray(listRes.data) ? listRes.data : [];
+    const exists = existing.some(
+      (inst: any) => (inst.name || inst.instanceName) === instanceName
+    );
+
+    if (exists) return true;
+
+    // Create the instance with Baileys integration
+    const createRes = await requestEvolution('/instance/create', {
+      method: 'POST',
+      body: JSON.stringify({
+        instanceName,
+        token: process.env.WEBHOOK_SECRET || 'whsec_kk_furnitures_webhook_token',
+        qrcode: false,
+        integration: 'WHATSAPP-BAILEYS',
+        reject_call: false,
+        groups_ignore: true,
+        always_online: true,
+        read_messages: true,
+        read_status: false,
+      }),
+    });
+
+    return createRes.success;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Restarts the WhatsApp instance socket
+ */
+export async function restartInstance(
+  instanceName: string = DEFAULT_INSTANCE
+): Promise<boolean> {
+  try {
+    const res = await requestEvolution(
+      `/instance/restart/${encodeURIComponent(instanceName)}`,
+      { method: 'POST' }
+    );
+    return res.success;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Generates an 8-digit WhatsApp pairing code for linking via phone number
  */
 export async function requestPairingCode(
   phoneNumber: string,
   instanceName: string = DEFAULT_INSTANCE
 ): Promise<{ success: boolean; code?: string; formattedCode?: string; error?: string }> {
-  const cleanPhone = phoneNumber.replace(/\D/g, '');
+  let cleanPhone = phoneNumber.replace(/\D/g, '');
+
+  // Automatically normalize Zimbabwean local numbers (e.g. 077..., 071..., 078..., 073...) to international 263...
+  if (cleanPhone.startsWith('0') && cleanPhone.length === 10) {
+    cleanPhone = '263' + cleanPhone.slice(1);
+  }
+
   if (!cleanPhone || cleanPhone.length < 8) {
-    return { success: false, error: 'Invalid phone number format. Provide country code + number.' };
+    return { success: false, error: 'Invalid phone number format. Please provide country code + number (e.g. +263 77...).' };
   }
 
-  const res = await requestEvolution<{ pairingCode?: string; code?: string }>(
-    `/instance/connect/${encodeURIComponent(instanceName)}?number=${encodeURIComponent(cleanPhone)}`
-  );
+  // Ensure instance is registered on Evolution API before attempting to pair
+  await ensureInstanceExists(instanceName);
 
-  if (!res.success) {
-    return { success: false, error: res.error || 'Failed to request pairing code' };
+  let rawCode: string | undefined;
+
+  // Retry up to 3 times with a short pause as Baileys initializes the pairing session
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const res = await requestEvolution<{ pairingCode?: string; code?: string }>(
+      `/instance/connect/${encodeURIComponent(instanceName)}?number=${encodeURIComponent(cleanPhone)}`
+    );
+
+    if (!res.success) {
+      if (res.status === 404) {
+        await ensureInstanceExists(instanceName);
+        continue;
+      }
+      return { success: false, error: res.error || 'Failed to request pairing code from Evolution API.' };
+    }
+
+    // Prioritize 8-digit alphanumeric pairingCode
+    if (res.data?.pairingCode && String(res.data.pairingCode).trim() !== 'null') {
+      rawCode = String(res.data.pairingCode).trim();
+      break;
+    }
+
+    // Only fallback to `code` if it is an exact 8-character string (not a 200+ char QR string)
+    if (res.data?.code && String(res.data.code).trim().length === 8) {
+      rawCode = String(res.data.code).trim();
+      break;
+    }
+
+    if (attempt < 3) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
   }
 
-  const rawCode = res.data?.code || res.data?.pairingCode;
   if (!rawCode) {
-    return { success: false, error: 'Evolution API did not return a pairing code. Ensure instance is created.' };
+    return {
+      success: false,
+      error: 'Evolution API did not return an 8-digit pairing code. Please ensure the phone number includes your full international country code without leading zeros (e.g. +263 77... for Zimbabwe).',
+    };
   }
 
-  const codeStr = String(rawCode).trim();
+  const codeStr = String(rawCode).trim().toUpperCase();
   const formattedCode =
     codeStr.length === 8 ? `${codeStr.slice(0, 4)}-${codeStr.slice(4)}` : codeStr;
 
