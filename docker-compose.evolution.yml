@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  evolution-api:
+    image: evoapicloud/evolution-api:latest
+    container_name: kkfurnitures_evolution_api
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      # Port & Host
+      - SERVER_PORT=8080
+      - DOCKER_ENV=true
+
+      # Master Security Key
+      - AUTHENTICATION_API_KEY=${AUTHENTICATION_API_KEY:-kk_evolution_secret_token_2026}
+
+      # Supabase PostgreSQL Persistence (Using isolated 'evolution' schema)
+      - DATABASE_ENABLED=true
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=${DATABASE_CONNECTION_URI}
+      - DATABASE_SAVE_DATA_INSTANCE=true
+
+      # Upstash Redis Cache
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=${CACHE_REDIS_URI}
+      - CACHE_REDIS_SAVE_INSTANCES=true
+      - CACHE_LOCAL_ENABLED=false
+
+      # Webhook & Logging
+      - DEL_INSTANCE=false
+      - WEBHOOK_GLOBAL_ENABLED=false
+      - LOG_LEVEL=ERROR,WARN,INFO

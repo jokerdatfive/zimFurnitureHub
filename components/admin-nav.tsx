@@ -2,12 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MessageSquare, Users, Handshake, ReceiptText, Package, Activity } from "lucide-react";
+import { MessageSquare, Users, Handshake, ReceiptText, Package, Activity, Sparkles } from "lucide-react";
 
 export function AdminNav() {
   const pathname = usePathname();
 
   const links = [
+    {
+      name: "AI Qualification",
+      href: "/dashboard",
+      icon: Sparkles,
+      badge: "AI",
+    },
     {
       name: "WhatsApp Inbox",
       href: "/admin/messages",

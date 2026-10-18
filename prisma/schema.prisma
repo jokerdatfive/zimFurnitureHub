@@ -1,0 +1,75 @@
+// ==============================================================================
+// Prisma Schema: WhatsApp AI Lead Platform (KK Furnitures / ZimFurnitureHub)
+// ==============================================================================
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum LeadStatus {
+  NEW
+  QUALIFIED_LEAD
+  HOT_LEAD
+  SUPPORT
+  SPAM
+  IRRELEVANT
+
+  @@map("lead_status_enum")
+}
+
+enum UrgencyLevel {
+  LOW
+  MEDIUM
+  HIGH
+
+  @@map("urgency_level_enum")
+}
+
+model WaContact {
+  id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  remoteJid         String       @unique @map("remote_jid")
+  phoneNumber       String       @map("phone_number")
+  pushName          String?      @map("push_name")
+  leadStatus        LeadStatus   @default(NEW) @map("lead_status")
+  leadScore         Int          @default(0) @map("lead_score")
+  aiSummary         String?      @map("ai_summary") @db.Text
+  extractedMetadata Json         @default("{}") @map("extracted_metadata")
+  lastMessageAt     DateTime     @default(now()) @map("last_message_at") @db.Timestamptz(6)
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  messages          WaMessage[]
+
+  @@index([remoteJid], map: "idx_wa_contacts_remote_jid")
+  @@index([leadStatus], map: "idx_wa_contacts_lead_status")
+  @@index([leadScore(sort: Desc)], map: "idx_wa_contacts_lead_score")
+  @@index([lastMessageAt(sort: Desc)], map: "idx_wa_contacts_last_message_at")
+  @@map("wa_contacts")
+}
+
+model WaMessage {
+  id                 String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  evolutionMessageId String        @unique @map("evolution_message_id")
+  contactId          String        @map("contact_id") @db.Uuid
+  contact            WaContact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  fromMe             Boolean       @default(false) @map("from_me")
+  messageType        String        @default("text") @map("message_type")
+  content            String?       @db.Text
+  rawPayload         Json?         @map("raw_payload")
+  aiProcessed        Boolean       @default(false) @map("ai_processed")
+  intent             String?
+  urgency            UrgencyLevel?
+  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([contactId], map: "idx_wa_messages_contact_id")
+  @@index([evolutionMessageId], map: "idx_wa_messages_evolution_id")
+  @@index([createdAt(sort: Asc)], map: "idx_wa_messages_created_at")
+  @@index([aiProcessed], map: "idx_wa_messages_ai_processed")
+  @@map("wa_messages")
+}
