@@ -22,10 +22,10 @@ export default async function DashboardLayout({
       } = await supabase.auth.getUser();
 
       if (!user) {
-        redirect("/admin-login");
+        redirect("/login");
       }
     } catch {
-      redirect("/admin-login");
+      redirect("/login");
     }
   }
 

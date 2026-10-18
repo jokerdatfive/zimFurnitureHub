@@ -23,5 +23,5 @@ export async function loginAdminAction(formData: FormData): Promise<{ error?: st
 
 export async function logoutAdminAction(): Promise<void> {
   await clearAdminSession();
-  redirect("/admin-login");
+  redirect("/login");
 }

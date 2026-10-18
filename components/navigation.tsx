@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Search, ShoppingCart, Menu, X } from "lucide-react";
+import { Search, ShoppingCart, Menu, X, Shield } from "lucide-react";
 import { useCart } from "@/lib/cart-context";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -21,7 +21,6 @@ export function Navigation() {
     { href: "/products?category=bedroom", label: "Bedroom" },
     { href: "/products?category=kitchen-dining", label: "Kitchen & Dining" },
     { href: "/about", label: "Our Story" },
-    { href: "/admin/messages", label: "Dashboard" },
   ];
 
   const handleSearch = (e: FormEvent) => {
@@ -101,6 +100,16 @@ export function Navigation() {
               <span className="sr-only">Shopping cart</span>
             </Button>
 
+            {/* Discreet Staff Portal Icon */}
+            <Link
+              href="/admin"
+              title="Staff Portal"
+              className="text-muted-foreground hover:text-foreground transition-colors p-2 rounded-md hover:bg-secondary/60"
+            >
+              <Shield className="h-4 w-4" />
+              <span className="sr-only">Staff Portal</span>
+            </Link>
+
             {/* Mobile menu button */}
             <Button
               variant="ghost"
@@ -132,6 +141,17 @@ export function Navigation() {
                   {link.label}
                 </Link>
               ))}
+
+              <div className="pt-3 border-t border-border">
+                <Link
+                  href="/admin"
+                  className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Shield className="h-3.5 w-3.5" />
+                  <span>Staff Portal</span>
+                </Link>
+              </div>
             </div>
           </div>
         )}

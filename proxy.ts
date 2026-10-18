@@ -17,15 +17,15 @@ export async function proxy(request: NextRequest) {
     const isAuthenticated = adminSession?.value === ADMIN_SESSION_VALUE;
 
     if (!isAuthenticated) {
-      const loginUrl = new URL("/admin-login", request.url);
+      const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("from", pathname);
       return NextResponse.redirect(loginUrl);
     }
   }
 
-  // Redirect /admin/login to /admin-login
+  // Redirect /admin/login to /login
   if (pathname === "/admin/login") {
-    return NextResponse.redirect(new URL("/admin-login", request.url));
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   return await updateSession(request);

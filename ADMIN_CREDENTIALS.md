@@ -4,7 +4,7 @@
 
 | Field | Value |
 |---|---|
-| **Admin Portal URL** | `/admin-login` |
+| **Admin Portal URLs** | `/login` or `/admin-login` |
 | **Username** | `adminuser1` |
 | **Password** | `kkfurnitures1` |
 | **Session Lifetime** | 7 Days (Persistent HttpOnly Cookie) |
@@ -13,7 +13,7 @@
 
 ## 2. Protected Routes
 
-Any unauthenticated attempt to visit the following routes will immediately redirect to `/admin-login`:
+Any unauthenticated attempt to visit the following routes will immediately redirect to `/login`:
 
 - **`/admin`** &mdash; Products & Catalog Management (Publish, Edit Pictures, Prices, Colors)
 - **`/admin/stock`** &mdash; Stock & Asset Movement Tracker (Daily Purchases, Restocks, Sales Ledger)
@@ -28,9 +28,9 @@ Any unauthenticated attempt to visit the following routes will immediately redir
 
 ## 3. How Authentication Works
 
-1. **Authentication Guard:** Next.js root middleware (`middleware.ts`) and layout guards (`app/admin/layout.tsx`, `app/dashboard/layout.tsx`) intercept requests.
+1. **Authentication Guard:** Next.js route proxy (`proxy.ts`) and layout guards (`app/admin/layout.tsx`, `app/dashboard/layout.tsx`) intercept requests.
 2. **Session Cookie:** Upon successful login, a secure, HttpOnly, SameSite cookie (`kk_admin_session`) is issued.
-3. **Log Out:** Admins can click the **Log Out** button in the top navigation bar at any time to invalidate the session and return to `/admin-login`.
+3. **Log Out:** Admins can click the **Log Out** button in the top navigation bar at any time to invalidate the session and return to `/login`.
 
 ---
 
