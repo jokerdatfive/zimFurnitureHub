@@ -290,7 +290,22 @@ export function LeadPipeline({
 
                     {/* Extracted Tags */}
                     <td className="py-4 px-4">
-                      <div className="flex flex-wrap gap-1.5 max-w-[200px]">
+                      <div className="flex flex-wrap gap-1.5 max-w-[220px]">
+                        {meta.is_layby && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-purple-950/60 text-purple-300 border border-purple-800/60 font-semibold">
+                            Layby Plan {meta.deposit_amount ? `($${meta.deposit_amount} dep)` : ''}
+                          </span>
+                        )}
+                        {meta.is_pending_order && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-amber-950/60 text-amber-300 border border-amber-800/60 font-semibold">
+                            Pending Order {meta.delivery_location ? `(${meta.delivery_location})` : ''}
+                          </span>
+                        )}
+                        {meta.payment_method && meta.payment_method !== 'Not_Specified' && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-emerald-950/60 text-emerald-300 border border-emerald-800/60">
+                            {meta.payment_method}
+                          </span>
+                        )}
                         {meta.budget && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-emerald-950/40 text-emerald-300 border border-emerald-800/40 font-mono">
                             <DollarSign className="w-3 h-3 text-emerald-400" />
@@ -309,7 +324,7 @@ export function LeadPipeline({
                             {meta.timeline}
                           </span>
                         )}
-                        {!meta.budget && !meta.product_interest && !meta.timeline && (
+                        {!meta.is_layby && !meta.is_pending_order && !meta.budget && !meta.product_interest && (
                           <span className="text-slate-600 text-[11px]">&mdash;</span>
                         )}
                       </div>

@@ -347,6 +347,66 @@ export function ChatInspector({
               </div>
             )}
 
+            {/* Retail Order & Layby Intelligence */}
+            {(meta.is_layby || meta.is_pending_order || meta.is_payment_promise || meta.payment_method) && (
+              <div className="p-4 rounded-2xl bg-indigo-950/30 border border-indigo-800/40 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-white text-xs flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-indigo-400" />
+                    Retail Transaction Detection
+                  </span>
+                  {meta.is_layby && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 uppercase">
+                      Layby Agreement
+                    </span>
+                  )}
+                  {meta.is_pending_order && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">
+                      Pending Order
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {meta.agreed_price && (
+                    <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800">
+                      <span className="text-[10px] text-slate-400 block">Total Price:</span>
+                      <span className="font-bold text-white font-mono">${meta.agreed_price}</span>
+                    </div>
+                  )}
+                  {meta.deposit_amount && (
+                    <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800">
+                      <span className="text-[10px] text-slate-400 block">Deposit Offered:</span>
+                      <span className="font-bold text-emerald-400 font-mono">${meta.deposit_amount}</span>
+                    </div>
+                  )}
+                  {meta.payment_method && (
+                    <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800">
+                      <span className="text-[10px] text-slate-400 block">Payment Method:</span>
+                      <span className="font-medium text-white">{meta.payment_method}</span>
+                    </div>
+                  )}
+                  {meta.delivery_location && (
+                    <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800">
+                      <span className="text-[10px] text-slate-400 block">Delivery To:</span>
+                      <span className="font-medium text-white">{meta.delivery_location}</span>
+                    </div>
+                  )}
+                </div>
+
+                {meta.is_layby && (
+                  <div className="pt-1">
+                    <a
+                      href="/admin/layby"
+                      className="inline-flex items-center gap-1.5 text-xs text-purple-400 hover:text-purple-300 underline font-medium"
+                    >
+                      View & Manage in Layby Agreement Board &rarr;
+                    </a>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* BANT Framework Matrix */}
             <div className="space-y-3">
               <h4 className="font-semibold text-white flex items-center gap-2">

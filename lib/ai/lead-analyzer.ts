@@ -74,8 +74,9 @@ function getAIModel() {
   }
 
   if (apiKey) {
-    // Default to Google Gemini 1.5 Flash (Generous free tier: 15 RPM, 1M TPM, 1500 req/day)
-    return google('gemini-1.5-flash');
+    // Google Gemini Flash (Generous free tier: 15 RPM, 1M TPM, 1500 req/day)
+    const modelName = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+    return google(modelName);
   }
 
   return null;
