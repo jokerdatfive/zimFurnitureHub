@@ -66,7 +66,10 @@ export const LeadAnalysisSchema = z.object({
  * Returns the configured AI model based on environment variables
  */
 function getAIModel() {
-  const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GOOGLE_API_KEY;
+  const apiKey =
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    'AIzaSyCSIXG9Xb629IhVW_SA7fxFkhMYalQietQ';
   const provider = (process.env.AI_PROVIDER || 'google').toLowerCase();
 
   if (provider === 'openai' && process.env.OPENAI_API_KEY) {
@@ -74,7 +77,6 @@ function getAIModel() {
   }
 
   if (apiKey) {
-    // Google Gemini Flash (Generous free tier: 15 RPM, 1M TPM, 1500 req/day)
     const modelName = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
     return google(modelName);
   }

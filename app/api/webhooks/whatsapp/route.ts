@@ -194,18 +194,10 @@ export async function POST(req: NextRequest) {
     );
 
     if ((!fromMe || isTestInquiry) && contentText && !contentText.startsWith('[')) {
-      const runAiQualification = async () => {
-        try {
-          await analyzeLeadMessage(contact.id, messageRecord.id, contentText, contact.push_name);
-        } catch (aiErr) {
-          console.error('[Async AI Task Error]:', aiErr);
-        }
-      };
-
-      if (typeof after === 'function') {
-        after(runAiQualification);
-      } else {
-        runAiQualification().catch(console.error);
+      try {
+        await analyzeLeadMessage(contact.id, messageRecord.id, contentText, contact.push_name);
+      } catch (aiErr: any) {
+        console.error('[AI Qualification Task Error]:', aiErr.message);
       }
     }
 
