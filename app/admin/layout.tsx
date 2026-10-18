@@ -2,6 +2,8 @@ import { AdminNav } from "@/components/admin-nav";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 
+import { isAuthenticatedAdmin } from "@/lib/auth/admin-auth";
+
 export const metadata = {
   title: "Admin Dashboard | Kombera Kombera Furnitures",
   description: "WhatsApp Sales, Inquiries, Leads, Layby & Inventory Management",
@@ -12,13 +14,22 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const isAdmin = await isAuthenticatedAdmin();
 
-  if (!user) {
-    redirect("/login");
+  if (!isAdmin) {
+    // Check Supabase session as fallback
+    try {
+      const supabase = await createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        redirect("/admin-login");
+      }
+    } catch {
+      redirect("/admin-login");
+    }
   }
 
   return (

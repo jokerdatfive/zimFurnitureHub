@@ -25,14 +25,6 @@ export const metadata = {
 export default async function StockManagementPage() {
   const supabase = await createClient();
 
-  // Check login
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    redirect("/login");
-  }
-
   // 1. Fetch Products & Variants
   let productsList: any[] = [];
   try {

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MessageSquare, Users, Handshake, ReceiptText, Package, Activity, Sparkles, Boxes } from "lucide-react";
+import { MessageSquare, Users, Handshake, ReceiptText, Package, Activity, Sparkles, Boxes, LogOut } from "lucide-react";
+import { logoutAdminAction } from "@/app/admin-login/actions";
 
 export function AdminNav() {
   const pathname = usePathname();
@@ -90,6 +91,23 @@ export function AdminNav() {
               </Link>
             );
           })}
+
+          {/* Log Out Button */}
+          <form
+            action={async () => {
+              await logoutAdminAction();
+            }}
+            className="ml-auto"
+          >
+            <button
+              type="submit"
+              title="Log out of admin portal"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors whitespace-nowrap"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span>Log Out</span>
+            </button>
+          </form>
         </div>
       </div>
     </div>

@@ -14,14 +14,6 @@ export const metadata = {
 export default async function AdminPage() {
   const supabase = await createClient();
 
-  // Check login
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    redirect("/login");
-  }
-
   // 1. Fetch products with categories, variants, and gallery images
   let products: any[] = [];
   try {
