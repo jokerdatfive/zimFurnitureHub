@@ -121,17 +121,17 @@ export function LeadPipeline({
   };
 
   return (
-    <div className="bg-slate-900/70 border border-slate-800 rounded-2xl shadow-xl overflow-hidden backdrop-blur-md">
+    <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
       {/* Filters & Search Header */}
-      <div className="p-4 sm:p-5 border-b border-slate-800 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+      <div className="p-4 sm:p-5 border-b border-border flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-secondary/20">
         {/* Filter Pills */}
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             onClick={() => setActiveFilter('ALL')}
             className={`px-3 py-1.5 rounded-xl text-xs font-medium transition ${
               activeFilter === 'ALL'
-                ? 'bg-slate-100 text-slate-950 font-semibold shadow'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                ? 'bg-primary text-primary-foreground font-semibold shadow-sm'
+                : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
             }`}
           >
             All Leads ({contacts.length})
@@ -140,8 +140,8 @@ export function LeadPipeline({
             onClick={() => setActiveFilter('HOT_LEAD')}
             className={`px-3 py-1.5 rounded-xl text-xs font-medium transition flex items-center gap-1.5 ${
               activeFilter === 'HOT_LEAD'
-                ? 'bg-rose-500 text-white font-semibold shadow-lg shadow-rose-900/40'
-                : 'text-rose-400 hover:bg-rose-950/40'
+                ? 'bg-rose-600 text-white font-semibold shadow-sm'
+                : 'text-rose-600 dark:text-rose-400 hover:bg-rose-500/10'
             }`}
           >
             <Flame className="w-3.5 h-3.5" />

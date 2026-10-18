@@ -166,12 +166,42 @@ export async function restartInstance(
 }
 
 /**
+ * Retrieves the live WhatsApp QR code (base64 image) for instant camera scanning.
+ */
+export async function getQrCode(
+  instanceName: string = DEFAULT_INSTANCE
+): Promise<{ success: boolean; qrBase64?: string; state?: string; error?: string }> {
+  try {
+    await ensureInstanceExists(instanceName);
+
+    // If instance is in 'close' state, restart to open a fresh socket
+    const stateCheck = await getInstanceConnectionState(instanceName);
+    if (stateCheck.state === 'close') {
+      await restartInstance(instanceName);
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+
+    const res = await requestEvolution<{ base64?: string; code?: string; count?: number }>(
+      `/instance/connect/${encodeURIComponent(instanceName)}`
+    );
+
+    if (res.success && res.data?.base64) {
+      return { success: true, qrBase64: res.data.base64, state: stateCheck.state };
+    }
+
+    return { success: false, error: res.error || 'Failed to retrieve WhatsApp QR code' };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Error generating QR code' };
+  }
+}
+
+/**
  * Generates an 8-digit WhatsApp pairing code for linking via phone number
  */
 export async function requestPairingCode(
   phoneNumber: string,
   instanceName: string = DEFAULT_INSTANCE
-): Promise<{ success: boolean; code?: string; formattedCode?: string; error?: string }> {
+): Promise<{ success: boolean; code?: string; formattedCode?: string; qrBase64?: string; error?: string }> {
   let cleanPhone = phoneNumber.replace(/\D/g, '');
 
   // Automatically normalize Zimbabwean local numbers (e.g. 077..., 071..., 078..., 073...) to international 263...
@@ -186,43 +216,38 @@ export async function requestPairingCode(
   // Ensure instance is registered on Evolution API before attempting to pair
   await ensureInstanceExists(instanceName);
 
+  // If instance is currently closed, restart it to establish a fresh Baileys WebSocket
+  try {
+    const stateCheck = await getInstanceConnectionState(instanceName);
+    if (stateCheck.state === 'close') {
+      await restartInstance(instanceName);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  } catch {}
+
+  const res = await requestEvolution<{ pairingCode?: string; code?: string; base64?: string }>(
+    `/instance/connect/${encodeURIComponent(instanceName)}?number=${encodeURIComponent(cleanPhone)}`
+  );
+
+  if (!res.success) {
+    return { success: false, error: res.error || 'Failed to request pairing code from Evolution API.' };
+  }
+
+  const qrBase64 = res.data?.base64;
   let rawCode: string | undefined;
 
-  // Retry up to 3 times with a short pause as Baileys initializes the pairing session
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    const res = await requestEvolution<{ pairingCode?: string; code?: string }>(
-      `/instance/connect/${encodeURIComponent(instanceName)}?number=${encodeURIComponent(cleanPhone)}`
-    );
-
-    if (!res.success) {
-      if (res.status === 404) {
-        await ensureInstanceExists(instanceName);
-        continue;
-      }
-      return { success: false, error: res.error || 'Failed to request pairing code from Evolution API.' };
-    }
-
-    // Prioritize 8-digit alphanumeric pairingCode
-    if (res.data?.pairingCode && String(res.data.pairingCode).trim() !== 'null') {
-      rawCode = String(res.data.pairingCode).trim();
-      break;
-    }
-
-    // Only fallback to `code` if it is an exact 8-character string (not a 200+ char QR string)
-    if (res.data?.code && String(res.data.code).trim().length === 8) {
-      rawCode = String(res.data.code).trim();
-      break;
-    }
-
-    if (attempt < 3) {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-    }
+  // Prioritize 8-digit alphanumeric pairingCode
+  if (res.data?.pairingCode && String(res.data.pairingCode).trim() !== 'null') {
+    rawCode = String(res.data.pairingCode).trim();
+  } else if (res.data?.code && String(res.data.code).trim().length === 8) {
+    rawCode = String(res.data.code).trim();
   }
 
   if (!rawCode) {
     return {
       success: false,
-      error: 'Evolution API did not return an 8-digit pairing code. Please ensure the phone number includes your full international country code without leading zeros (e.g. +263 77... for Zimbabwe).',
+      qrBase64,
+      error: 'Evolution API did not return an 8-digit pairing code. Please ensure your WhatsApp phone number includes the international country code (e.g. +263 77... without leading zero). You can also scan the QR code to pair immediately.',
     };
   }
 
@@ -234,6 +259,7 @@ export async function requestPairingCode(
     success: true,
     code: codeStr,
     formattedCode,
+    qrBase64,
   };
 }
 

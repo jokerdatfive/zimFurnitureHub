@@ -11,7 +11,7 @@ export function AdminNav() {
   const links = [
     {
       name: "AI Qualification",
-      href: "/dashboard",
+      href: "/admin/ai-qualification",
       icon: Sparkles,
       badge: "AI",
     },
