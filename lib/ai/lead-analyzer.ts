@@ -191,9 +191,8 @@ export async function analyzeLeadMessage(
     let analysis: z.infer<typeof LeadAnalysisSchema>;
     const model = getAIModel();
 
-    if (model) {
-      // 2. Formulate Prompt for Gemini 1.5 Flash
-      const systemPrompt = `You are an elite AI Sales Qualification Specialist and Lead Scoring Engine for KK Furnitures (ZimFurnitureHub, Zimbabwe).
+    // 2. Formulate Prompt
+    const systemPrompt = `You are an elite AI Sales Qualification Specialist and Lead Scoring Engine for KK Furnitures (ZimFurnitureHub, Zimbabwe).
 Your job is to analyze WhatsApp conversations in real-time, determine the customer's intent, calculate a lead qualification score (0-100), extract BANT criteria (Budget, Authority, Need, Timeline), detect Layby inquiries/orders, EcoCash/cash payment promises, and pending orders.
 
 Zimbabwean Retail Rules:
@@ -205,7 +204,7 @@ Zimbabwean Retail Rules:
 - NEW (Score 20-50): General greeting ("hi", "how much"), broad questions.
 - SPAM (Score 0-15): Solicitations, broadcast spam, wrong number.`;
 
-      const userPrompt = `Analyze the following WhatsApp conversation context:
+    const userPrompt = `Analyze the following WhatsApp conversation context:
 
 CURRENT NEW MESSAGE:
 "${currentMessageText}"
@@ -215,15 +214,21 @@ ${transcript || '(No prior history - this is the first message)'}
 
 Output the structured qualification analysis.`;
 
-      const result = await generateObject({
-        model,
-        schema: LeadAnalysisSchema,
-        system: systemPrompt,
-        prompt: userPrompt,
-        temperature: 0.1,
-      });
+    if (model) {
+      try {
+        const result = await generateObject({
+          model,
+          schema: LeadAnalysisSchema,
+          system: systemPrompt,
+          prompt: userPrompt,
+          temperature: 0.1,
+        });
 
-      analysis = result.object;
+        analysis = result.object;
+      } catch (genErr: any) {
+        console.warn('[AI Engine] Model generation failed (' + genErr.message + '). Falling back to built-in retail heuristic classifier.');
+        analysis = heuristicRetailAnalysis(currentMessageText, transcript);
+      }
     } else {
       console.warn('[AI Engine] GOOGLE_GENERATIVE_AI_API_KEY not set. Using built-in retail heuristic classifier.');
       analysis = heuristicRetailAnalysis(currentMessageText, transcript);
