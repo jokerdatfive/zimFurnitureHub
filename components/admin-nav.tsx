@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MessageSquare, Users, Handshake, ReceiptText, Package, Activity, Sparkles } from "lucide-react";
+import { MessageSquare, Users, Handshake, ReceiptText, Package, Activity, Sparkles, Boxes } from "lucide-react";
 
 export function AdminNav() {
   const pathname = usePathname();
@@ -36,9 +36,15 @@ export function AdminNav() {
       icon: ReceiptText,
     },
     {
-      name: "Inventory / Stock",
+      name: "Products & Catalog",
       href: "/admin",
       icon: Package,
+    },
+    {
+      name: "Stock & Assets",
+      href: "/admin/stock",
+      icon: Boxes,
+      badge: "Movements",
     },
     {
       name: "Webhook Monitor",

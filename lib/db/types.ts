@@ -12,9 +12,16 @@ export interface ExtractedMetadata {
   budget: string | null;
   product_interest: string | null;
   urgency: string | null;
-  location: string | null;
+  location?: string | null;
   timeline?: string | null;
   action_required?: string | null;
+  is_layby?: boolean;
+  is_pending_order?: boolean;
+  is_payment_promise?: boolean;
+  payment_method?: string | null;
+  agreed_price?: number | null;
+  deposit_amount?: number | null;
+  delivery_location?: string | null;
 }
 
 export interface WaContact {
@@ -52,17 +59,27 @@ export interface AILeadAnalysisResult {
   intent:
     | 'pricing_inquiry'
     | 'ready_to_buy'
+    | 'layby_request'
+    | 'order_placement'
+    | 'payment_promise'
     | 'booking_request'
     | 'customer_support'
     | 'general_greeting'
     | 'spam';
   urgency: UrgencyLevel;
   summary: string;
+  is_layby?: boolean;
+  is_pending_order?: boolean;
+  is_payment_promise?: boolean;
   extracted_data: {
     budget: string | null;
     product_or_service: string | null;
     timeline: string | null;
     action_required: string;
+    payment_method?: string | null;
+    agreed_price?: number | null;
+    deposit_amount?: number | null;
+    delivery_location?: string | null;
   };
 }
 
