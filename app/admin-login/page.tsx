@@ -72,7 +72,7 @@ export default function AdminLoginPage() {
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="adminuser1"
+                placeholder="Enter your username"
                 className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition font-medium"
               />
             </div>
@@ -111,14 +111,6 @@ export default function AdminLoginPage() {
             {!loading && <ArrowRight className="w-4 h-4" />}
           </Button>
         </form>
-
-        {/* Credentials Reminder Box */}
-        <div className="mt-8 p-3.5 rounded-xl bg-secondary/50 border border-border text-center text-xs text-muted-foreground">
-          <p className="font-semibold text-foreground mb-1">Standard Admin Credentials</p>
-          <p className="font-mono text-[11px]">
-            Username: <span className="text-primary font-bold">adminuser1</span> | Password: <span className="text-primary font-bold">kkfurnitures1</span>
-          </p>
-        </div>
       </div>
     </div>
   );

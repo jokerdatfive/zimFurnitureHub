@@ -59,7 +59,7 @@ export default function LoginPage() {
                 id="username"
                 name="username"
                 type="text"
-                placeholder="adminuser1"
+                placeholder="Enter your username"
                 required
                 className="pl-10 h-11 bg-background border-border rounded-xl text-sm"
               />
@@ -95,14 +95,6 @@ export default function LoginPage() {
             {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
           </Button>
         </form>
-
-        {/* Credentials Reminder */}
-        <div className="mt-8 p-3.5 rounded-xl bg-secondary/50 border border-border text-center text-xs text-muted-foreground">
-          <p className="font-semibold text-foreground mb-1">Standard Admin Credentials</p>
-          <p className="font-mono text-[11px]">
-            Username: <span className="text-primary font-bold">adminuser1</span> | Password: <span className="text-primary font-bold">kkfurnitures1</span>
-          </p>
-        </div>
       </div>
     </div>
   );

@@ -4,13 +4,26 @@ import { cookies } from 'next/headers'
 export async function createClient() {
   const cookieStore = await cookies()
 
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    "https://tongnlfwkkjgenqxnqbr.supabase.co"
+
+  const supabaseKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    "placeholder-anon-key-for-build"
+
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseKey,
     {
       cookies: {
         getAll() {
-          return cookieStore.getAll()
+          try {
+            return cookieStore.getAll()
+          } catch {
+            return []
+          }
         },
         setAll(cookiesToSet) {
           try {
@@ -18,9 +31,8 @@ export async function createClient() {
               cookieStore.set(name, value, options)
             })
           } catch (error) {
-            // The `set` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
+            // The `set` method was called from a Server Component or read-only context.
+            // This is ignored in Next.js Server Components.
           }
         },
       },
