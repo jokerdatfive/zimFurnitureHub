@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/auth/require-admin';
 import { getInstanceConnectionState, pingSpace } from '@/lib/evolution/client';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET() {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const spaceHealth = await pingSpace();
     const connectionState = await getInstanceConnectionState();

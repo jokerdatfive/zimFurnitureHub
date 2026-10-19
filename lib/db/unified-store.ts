@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { queryPg } from './postgres';
+import { queryPg, pgPool } from './postgres';
 import { CATALOG_PRODUCTS, CATALOG_CATEGORIES } from '@/lib/catalog-data';
 
 export interface StoredProduct {
@@ -75,16 +75,21 @@ export interface StoredLead {
 const DATA_DIR = path.join(process.cwd(), 'data');
 
 function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+  } catch {
+    // read-only filesystem (e.g. Vercel): the database is the source of truth
   }
 }
+
+const IS_PROD = process.env.NODE_ENV === 'production';
 
 function readJsonFile<T>(filename: string, fallback: T): T {
   ensureDataDir();
   const filePath = path.join(DATA_DIR, filename);
   if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, JSON.stringify(fallback, null, 2), 'utf8');
     return fallback;
   }
   try {
@@ -95,10 +100,14 @@ function readJsonFile<T>(filename: string, fallback: T): T {
   }
 }
 
+/** Best-effort local cache; never throws (the filesystem is read-only on Vercel). */
 function writeJsonFile<T>(filename: string, data: T): void {
-  ensureDataDir();
-  const filePath = path.join(DATA_DIR, filename);
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+  try {
+    ensureDataDir();
+    fs.writeFileSync(path.join(DATA_DIR, filename), JSON.stringify(data, null, 2), 'utf8');
+  } catch {
+    // ignore
+  }
 }
 
 // Initial products built from Zimbabwe catalog
@@ -370,7 +379,7 @@ export async function getStockMovements(): Promise<StockMovement[]> {
     console.warn('[UnifiedStore] Note: Using local stock movement ledger:', err.message);
   }
 
-  return localMovements;
+  return IS_PROD ? [] : localMovements;
 }
 
 export async function logStockMovement(data: {
@@ -522,6 +531,7 @@ export async function getLeads(includeCasual: boolean = false): Promise<StoredLe
     console.warn('[UnifiedStore] Note: Using local leads store:', err.message);
   }
 
+  if (IS_PROD) return [];
   return includeCasual ? localLeads : localLeads.filter((l) => !l.is_casual_chat);
 }
 
@@ -557,119 +567,138 @@ export async function updateLeadStatus(leadId: string, status: StoredLead['statu
  * LAYBY AGREEMENTS & INSTALLMENTS
  * ==========================================
  */
-export async function getLaybys(): Promise<StoredLayby[]> {
-  const localLaybys = readJsonFile<StoredLayby[]>('laybys.json', []);
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const iso = (v: any) => (v instanceof Date ? v.toISOString() : String(v || new Date().toISOString()));
+
+function mapLaybyRow(r: any): StoredLayby {
+  return {
+    id: r.id,
+    contact_id: r.wa_contact_id || r.contact_id || null,
+    customer_name: r.customer_name || 'Showroom Customer',
+    customer_phone: r.customer_phone || '',
+    product_name: r.product_name,
+    total_price: parseFloat(r.total_price) || 0,
+    deposit_paid: parseFloat(r.deposit_paid) || 0,
+    balance_due: parseFloat(r.balance_due) || 0,
+    status: r.status,
+    notes: r.notes || '',
+    payments: (r.payments || []).map((p: any) => ({ ...p, amount: parseFloat(p.amount) || 0 })),
+    created_at: iso(r.created_at),
+    updated_at: iso(r.updated_at || r.created_at),
+  };
+}
+
+const LAYBY_PAYMENTS_SQL = `COALESCE(
+  (SELECT json_agg(json_build_object('id', lp.id, 'amount', lp.amount, 'payment_date', lp.payment_date, 'payment_method', lp.payment_method, 'reference', lp.reference) ORDER BY lp.payment_date)
+   FROM layby_payments lp WHERE lp.layby_id = la.id), '[]'::json) AS payments`;
+
+async function selectLaybys(where: string, params: any[]): Promise<any[]> {
   try {
-    const rows = await queryPg(`
-      SELECT la.id, la.contact_id, la.product_name, la.total_price, la.deposit_paid,
-             la.balance_due, la.status, la.notes, la.created_at, la.updated_at,
-             wc.profile_name as customer_name, wc.phone as customer_phone,
-             COALESCE(
-               (SELECT json_agg(json_build_object('id', lp.id, 'amount', lp.amount, 'payment_date', lp.payment_date, 'payment_method', lp.payment_method, 'reference', lp.reference))
-                FROM layby_payments lp WHERE lp.layby_id = la.id), '[]'::json
-             ) as payments
-      FROM layby_agreements la
-      LEFT JOIN whatsapp_contacts wc ON la.contact_id = wc.id
-      ORDER BY la.created_at DESC;
-    `);
-
-    if (rows && rows.length > 0) {
-      const dbLaybys: StoredLayby[] = rows.map((r: any) => ({
-        id: r.id,
-        contact_id: r.contact_id,
-        customer_name: r.customer_name || 'Showroom Customer',
-        customer_phone: r.customer_phone || '',
-        product_name: r.product_name,
-        total_price: parseFloat(r.total_price) || 0,
-        deposit_paid: parseFloat(r.deposit_paid) || 0,
-        balance_due: parseFloat(r.balance_due) || 0,
-        status: r.status,
-        notes: r.notes || '',
-        payments: (r.payments || []).map((p: any) => ({
-          ...p,
-          amount: parseFloat(p.amount) || 0,
-        })),
-        created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at || new Date().toISOString()),
-        updated_at: r.updated_at instanceof Date ? r.updated_at.toISOString() : String(r.updated_at || r.created_at || new Date().toISOString()),
-      }));
-
-      writeJsonFile('laybys.json', dbLaybys);
-      return dbLaybys;
-    }
+    return await queryPg(
+      `SELECT la.id, la.contact_id, la.wa_contact_id, la.product_name, la.total_price, la.deposit_paid,
+              la.balance_due, la.status, la.notes, la.created_at, la.updated_at,
+              COALESCE(la.customer_name, wac.push_name, wc.profile_name) AS customer_name,
+              COALESCE(la.customer_phone, wac.phone_number, wc.phone) AS customer_phone,
+              ${LAYBY_PAYMENTS_SQL}
+       FROM layby_agreements la
+       LEFT JOIN whatsapp_contacts wc ON la.contact_id = wc.id
+       LEFT JOIN wa_contacts wac ON la.wa_contact_id = wac.id
+       ${where} ORDER BY la.created_at DESC`,
+      params
+    );
   } catch (err: any) {
-    console.warn('[UnifiedStore] Note: Using local layby store:', err.message);
+    // Migration 20261019000004 not applied yet: fall back to the legacy columns
+    console.warn('[UnifiedStore] Layby query fell back to legacy columns:', err.message);
+    return queryPg(
+      `SELECT la.id, la.contact_id, la.product_name, la.total_price, la.deposit_paid,
+              la.balance_due, la.status, la.notes, la.created_at, la.updated_at,
+              wc.profile_name AS customer_name, wc.phone AS customer_phone,
+              ${LAYBY_PAYMENTS_SQL}
+       FROM layby_agreements la
+       LEFT JOIN whatsapp_contacts wc ON la.contact_id = wc.id
+       ${where} ORDER BY la.created_at DESC`,
+      params
+    );
   }
+}
 
-  return localLaybys;
+export async function getLaybys(): Promise<StoredLayby[]> {
+  try {
+    // The database is the source of truth, even when it has no laybys yet
+    return (await selectLaybys('', [])).map(mapLaybyRow);
+  } catch (err: any) {
+    console.warn('[UnifiedStore] Layby DB unavailable:', err.message);
+    // Demo data in data/laybys.json must never be shown to the client in production
+    return IS_PROD ? [] : readJsonFile<StoredLayby[]>('laybys.json', []);
+  }
 }
 
 export async function createLayby(data: {
   customerName: string;
   customerPhone?: string;
-  contactId?: string;
+  contactId?: string; // legacy whatsapp_contacts id
+  waContactId?: string; // wa_contacts id (Evolution / AI flow)
   productName: string;
   totalPrice: number;
   depositPaid: number;
   paymentMethod?: string;
+  reference?: string;
   notes?: string;
 }): Promise<StoredLayby> {
-  const laybys = readJsonFile<StoredLayby[]>('laybys.json', []);
   const balance = Math.max(0, data.totalPrice - data.depositPaid);
-  const now = new Date().toISOString();
-  const id = `lay-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const status: StoredLayby['status'] = balance === 0 ? 'COMPLETED' : 'ACTIVE';
+  const method = data.paymentMethod || 'EcoCash';
+  const legacyContact = data.contactId && UUID_RE.test(data.contactId) ? data.contactId : null;
+  const waContact = data.waContactId && UUID_RE.test(data.waContactId) ? data.waContactId : null;
 
-  const payments = [];
-  if (data.depositPaid > 0) {
-    payments.push({
-      id: `pay-${Date.now()}`,
-      amount: data.depositPaid,
-      payment_date: now,
-      payment_method: data.paymentMethod || 'EcoCash',
-      reference: 'Initial Deposit',
-    });
+  try {
+    const rows = await queryPg(
+      `INSERT INTO layby_agreements
+         (contact_id, wa_contact_id, customer_name, customer_phone, product_name, total_price, deposit_paid, balance_due, status, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+      [legacyContact, waContact, data.customerName, data.customerPhone || null, data.productName, data.totalPrice, data.depositPaid, balance, status, data.notes || '']
+    );
+    const id: string = rows[0].id;
+
+    if (data.depositPaid > 0) {
+      await queryPg(
+        `INSERT INTO layby_payments (layby_id, amount, payment_method, reference) VALUES ($1, $2, $3, $4)`,
+        [id, data.depositPaid, method, data.reference || 'Initial Deposit']
+      );
+    }
+
+    const created = (await selectLaybys('WHERE la.id = $1', [id])).map(mapLaybyRow)[0];
+    if (created) return created;
+  } catch (err: any) {
+    // Never pretend a layby was saved: Vercel cannot persist local files
+    if (IS_PROD) throw new Error(`Could not save layby: ${err.message}`);
+    console.warn('[UnifiedStore] Layby DB insert failed, saving locally (dev only):', err.message);
   }
 
-  const newLayby: StoredLayby = {
-    id,
-    contact_id: data.contactId || null,
+  // Dev-only local fallback
+  const laybys = readJsonFile<StoredLayby[]>('laybys.json', []);
+  const now = new Date().toISOString();
+  const local: StoredLayby = {
+    id: `lay-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    contact_id: waContact || legacyContact,
     customer_name: data.customerName,
     customer_phone: data.customerPhone || '',
     product_name: data.productName,
     total_price: data.totalPrice,
     deposit_paid: data.depositPaid,
     balance_due: balance,
-    status: balance === 0 ? 'COMPLETED' : 'ACTIVE',
+    status,
     notes: data.notes || '',
-    payments,
+    payments: data.depositPaid > 0
+      ? [{ id: `pay-${Date.now()}`, amount: data.depositPaid, payment_date: now, payment_method: method, reference: 'Initial Deposit' }]
+      : [],
     created_at: now,
     updated_at: now,
   };
-
-  laybys.unshift(newLayby);
+  laybys.unshift(local);
   writeJsonFile('laybys.json', laybys);
-
-  // Sync to PostgreSQL if connected
-  try {
-    const isContactUuid = data.contactId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.contactId);
-    const dbRes = await queryPg(
-      `INSERT INTO layby_agreements (contact_id, product_name, total_price, deposit_paid, balance_due, status, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-      [isContactUuid ? data.contactId : null, data.productName, data.totalPrice, data.depositPaid, balance, newLayby.status, data.notes || '']
-    );
-
-    if (dbRes && dbRes[0]?.id && data.depositPaid > 0) {
-      await queryPg(
-        `INSERT INTO layby_payments (layby_id, amount, payment_method, reference)
-         VALUES ($1, $2, $3, $4)`,
-        [dbRes[0].id, data.depositPaid, data.paymentMethod || 'EcoCash', 'Initial Deposit']
-      );
-    }
-  } catch (err: any) {
-    console.warn('[UnifiedStore] Layby stored locally. DB sync deferred:', err.message);
-  }
-
-  return newLayby;
+  return local;
 }
 
 export async function recordLaybyInstallment(data: {
@@ -678,16 +707,49 @@ export async function recordLaybyInstallment(data: {
   paymentMethod: string;
   reference?: string;
 }): Promise<StoredLayby | null> {
+  if (!(data.amount > 0)) return null;
+
+  if (UUID_RE.test(data.laybyId) && pgPool) {
+    // Atomic: the payment row and the running totals change together
+    const client = await pgPool.connect();
+    try {
+      await client.query('BEGIN');
+      const upd = await client.query(
+        `UPDATE layby_agreements
+            SET deposit_paid = deposit_paid + $2,
+                balance_due = GREATEST(0, total_price - (deposit_paid + $2)),
+                status = CASE WHEN total_price - (deposit_paid + $2) <= 0 THEN 'COMPLETED' ELSE status END,
+                updated_at = NOW()
+          WHERE id = $1 AND status = 'ACTIVE'
+          RETURNING id`,
+        [data.laybyId, data.amount]
+      );
+      if (upd.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+      await client.query(
+        `INSERT INTO layby_payments (layby_id, amount, payment_method, reference) VALUES ($1, $2, $3, $4)`,
+        [data.laybyId, data.amount, data.paymentMethod, data.reference || null]
+      );
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+    }
+    return (await selectLaybys('WHERE la.id = $1', [data.laybyId])).map(mapLaybyRow)[0] || null;
+  }
+
+  // Dev-only local fallback (non-UUID ids only exist in data/laybys.json)
   const laybys = readJsonFile<StoredLayby[]>('laybys.json', []);
   const layby = laybys.find((l) => l.id === data.laybyId);
-  if (!layby) return null;
-
+  if (!layby || layby.status !== 'ACTIVE') return null;
   const now = new Date().toISOString();
   layby.deposit_paid += data.amount;
   layby.balance_due = Math.max(0, layby.total_price - layby.deposit_paid);
-  if (layby.balance_due === 0) {
-    layby.status = 'COMPLETED';
-  }
+  if (layby.balance_due === 0) layby.status = 'COMPLETED';
   layby.updated_at = now;
   layby.payments.push({
     id: `pay-${Date.now()}`,
@@ -696,25 +758,7 @@ export async function recordLaybyInstallment(data: {
     payment_method: data.paymentMethod,
     reference: data.reference,
   });
-
   writeJsonFile('laybys.json', laybys);
-
-  try {
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.laybyId);
-    if (isUuid) {
-      await queryPg(
-        `INSERT INTO layby_payments (layby_id, amount, payment_method, reference) VALUES ($1, $2, $3, $4)`,
-        [data.laybyId, data.amount, data.paymentMethod, data.reference || null]
-      );
-      await queryPg(
-        `UPDATE layby_agreements SET deposit_paid = $1, balance_due = $2, status = $3, updated_at = NOW() WHERE id = $4`,
-        [layby.deposit_paid, layby.balance_due, layby.status, data.laybyId]
-      );
-    }
-  } catch (err: any) {
-    console.warn('[UnifiedStore] Layby payment recorded in store:', err.message);
-  }
-
   return layby;
 }
 

@@ -148,6 +148,7 @@ async function run() {
           always_online: true,
           read_messages: true,
           read_status: false,
+          syncFullHistory: false,
         }),
       });
 
@@ -170,12 +171,9 @@ async function run() {
         },
         byEvents: false,
         base64: false,
-        events: [
-          'MESSAGES_UPSERT',
-          'CONNECTION_UPDATE',
-          'MESSAGES_UPDATE',
-          'SEND_MESSAGE',
-        ],
+        // Only what the app uses. MESSAGES_UPDATE / SEND_MESSAGE fire for every
+        // receipt and echo and would just add webhook traffic and DB writes.
+        events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
       };
 
       const setWebhookRes = await fetchWithAuth(

@@ -48,8 +48,12 @@ export async function recordLaybyPayment(formData: FormData) {
       reference,
     });
 
+    if (!updated) {
+      return { error: "Payment not recorded: this layby was not found or is no longer active." };
+    }
+
     // If balance reached 0, automatically log stock sale deduction if linked to a product
-    if (updated && updated.balance_due === 0) {
+    if (updated.balance_due === 0) {
       const products = await getProducts();
       const matched = products.find((p) => p.name.toLowerCase().includes(updated.product_name.toLowerCase()) || updated.product_name.toLowerCase().includes(p.name.toLowerCase()));
       if (matched) {

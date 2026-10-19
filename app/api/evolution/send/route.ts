@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/auth/require-admin';
 import { sendWhatsAppMessage } from '@/lib/evolution/client';
 import { supabaseAdmin } from '@/lib/db/supabase-admin';
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const { contactId, phoneNumber, message } = await req.json().catch(() => ({}));
 

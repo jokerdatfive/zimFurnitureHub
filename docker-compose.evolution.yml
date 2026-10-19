@@ -20,6 +20,13 @@ services:
       - DATABASE_PROVIDER=postgresql
       - DATABASE_CONNECTION_URI=${DATABASE_CONNECTION_URI}
       - DATABASE_SAVE_DATA_INSTANCE=true
+      # Do not mirror chat history into Supabase (the app keeps its own trimmed copy)
+      - DATABASE_SAVE_DATA_NEW_MESSAGE=false
+      - DATABASE_SAVE_MESSAGE_UPDATE=false
+      - DATABASE_SAVE_DATA_CONTACTS=false
+      - DATABASE_SAVE_DATA_CHATS=false
+      - DATABASE_SAVE_DATA_LABELS=false
+      - DATABASE_SAVE_DATA_HISTORIC=false
 
       # Upstash Redis Cache
       - CACHE_REDIS_ENABLED=true

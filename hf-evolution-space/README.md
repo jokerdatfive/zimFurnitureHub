@@ -45,6 +45,12 @@ Add these as plain **Variables**:
 | `DATABASE_ENABLED` | `true` | Enables PostgreSQL session persistence |
 | `DATABASE_PROVIDER` | `postgresql` | Specifies PostgreSQL provider |
 | `DATABASE_SAVE_DATA_INSTANCE` | `true` | Persists WhatsApp Baileys auth tokens in DB |
+| `DATABASE_SAVE_DATA_NEW_MESSAGE` | `false` | **Do not** copy every message into Supabase (the app stores its own trimmed copy) |
+| `DATABASE_SAVE_MESSAGE_UPDATE` | `false` | Skip delivery/read-receipt rows (very high volume) |
+| `DATABASE_SAVE_DATA_CONTACTS` | `false` | Skip mirrored contact list |
+| `DATABASE_SAVE_DATA_CHATS` | `false` | Skip mirrored chat list |
+| `DATABASE_SAVE_DATA_LABELS` | `false` | Skip labels |
+| `DATABASE_SAVE_DATA_HISTORIC` | `false` | Skip history sync on pairing |
 | `CACHE_REDIS_ENABLED` | `true` | Uses Redis for fast ephemeral lock and token caching |
 | `CACHE_REDIS_SAVE_INSTANCES` | `true` | Caches active session instances in Redis |
 | `CACHE_LOCAL_ENABLED` | `false` | Disables container-local disk cache (which wipes on Space restart) |

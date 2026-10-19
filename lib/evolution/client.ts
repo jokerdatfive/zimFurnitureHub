@@ -142,6 +142,7 @@ export async function ensureInstanceExists(
         always_online: true,
         read_messages: true,
         read_status: false,
+        syncFullHistory: false,
       }),
     });
 

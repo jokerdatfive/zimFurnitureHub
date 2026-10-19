@@ -1,16 +1,13 @@
 /**
  * ==============================================================================
- * Module 3: Non-Blocking WhatsApp Webhook Endpoint
- * Location: zimFurnitureHub/app/api/webhooks/whatsapp/route.ts
- * ==============================================================================
+ * Evolution API -> Supabase webhook (lean ingest)
  * Route: POST /api/webhooks/whatsapp
- *
- * Designed for Vercel Free Tier's 10s execution limit:
- * 1. Authenticates webhook signature via `x-webhook-secret` header.
- * 2. Parses and filters WhatsApp events (ignores groups & status broadcasts).
- * 3. Immediately upserts the contact and persists the raw message to Supabase.
- * 4. Dispatches the AI Lead Qualification asynchronously via `after()` or detached promise.
- * 5. Returns 200 OK within < 150ms to prevent Evolution API timeout retries.
+ * ==============================================================================
+ * 1. Authenticates via `x-webhook-secret` (fails closed if WEBHOOK_SECRET unset).
+ * 2. Drops everything that is not a real text-bearing 1:1 message.
+ * 3. Stores ONLY the extracted text (no raw Baileys payload) to keep the DB small.
+ * 4. Runs AI qualification after the response is sent (`after()`), so Evolution
+ *    never times out and retries.
  * ==============================================================================
  */
 
@@ -18,66 +15,83 @@ import { NextRequest, NextResponse, after } from 'next/server';
 import { supabaseAdmin } from '@/lib/db/supabase-admin';
 import { analyzeLeadMessage } from '@/lib/ai/lead-analyzer';
 
+export const maxDuration = 30;
+
 const EXPECTED_SECRET = process.env.WEBHOOK_SECRET || '';
 const IGNORE_GROUPS = process.env.IGNORE_GROUPS !== 'false';
+const MAX_CONTENT_CHARS = 2000;
+
+// Staff replies are only worth an AI call when they look like payment/layby talk
+const STAFF_PAYMENT_HINT = /received|payment|paid|ecocash|innbucks|mukuru|deposit|confirm|layby|balance|\$\s?\d|usd\s?\d/i;
+// Customer messages with no information (acks, emoji-only) are not worth an AI call
+const LOW_SIGNAL = /^(?:hi+|hello+|hey+|ok(?:ay)?|k|thanks?|thank you|thx|sharp|mhoro|ndatenda|👍|🙏|[\s!.,?])*$/i;
+
+type Extracted = { text: string; messageType: string } | null;
 
 /**
- * Extracts clean text content from various WhatsApp message payload formats
+ * Pulls plain text out of a Baileys message. Returns null for message kinds that
+ * carry no useful information (stickers, reactions, protocol/system messages).
  */
-function extractMessageContent(messageObj: any): { text: string; messageType: string } {
-  if (!messageObj) return { text: '', messageType: 'empty' };
+function extractMessageContent(rawMessage: any): Extracted {
+  if (!rawMessage) return null;
 
-  if (typeof messageObj.conversation === 'string' && messageObj.conversation.trim()) {
-    return { text: messageObj.conversation.trim(), messageType: 'text' };
+  // Unwrap disappearing-message / view-once wrappers
+  const m =
+    rawMessage.ephemeralMessage?.message ||
+    rawMessage.viewOnceMessage?.message ||
+    rawMessage.viewOnceMessageV2?.message ||
+    rawMessage.documentWithCaptionMessage?.message ||
+    rawMessage;
+
+  const clip = (s: string) => s.trim().slice(0, MAX_CONTENT_CHARS);
+
+  if (typeof m.conversation === 'string' && m.conversation.trim()) {
+    return { text: clip(m.conversation), messageType: 'text' };
   }
-
-  if (messageObj.extendedTextMessage?.text) {
-    return { text: messageObj.extendedTextMessage.text.trim(), messageType: 'text' };
+  if (m.extendedTextMessage?.text) {
+    return { text: clip(m.extendedTextMessage.text), messageType: 'text' };
   }
-
-  if (messageObj.imageMessage) {
+  if (m.buttonsResponseMessage?.selectedDisplayText) {
+    return { text: clip(m.buttonsResponseMessage.selectedDisplayText), messageType: 'text' };
+  }
+  if (m.listResponseMessage?.title) {
+    return { text: clip(m.listResponseMessage.title), messageType: 'text' };
+  }
+  if (m.imageMessage) {
+    return { text: clip(m.imageMessage.caption || '[Image]'), messageType: 'image' };
+  }
+  if (m.videoMessage) {
+    return { text: clip(m.videoMessage.caption || '[Video]'), messageType: 'video' };
+  }
+  if (m.documentMessage) {
     return {
-      text: messageObj.imageMessage.caption?.trim() || '[Image message with no caption]',
-      messageType: 'image',
-    };
-  }
-
-  if (messageObj.videoMessage) {
-    return {
-      text: messageObj.videoMessage.caption?.trim() || '[Video message with no caption]',
-      messageType: 'video',
-    };
-  }
-
-  if (messageObj.documentMessage) {
-    return {
-      text: messageObj.documentMessage.caption?.trim() || `[Document: ${messageObj.documentMessage.fileName || 'file'}]`,
+      text: clip(m.documentMessage.caption || `[Document: ${m.documentMessage.fileName || 'file'}]`),
       messageType: 'document',
     };
   }
-
-  if (messageObj.audioMessage) {
-    return { text: '[Audio voice note]', messageType: 'audio' };
+  if (m.audioMessage) {
+    return { text: '[Voice note]', messageType: 'audio' };
   }
 
-  if (messageObj.stickerMessage) {
-    return { text: '[Sticker]', messageType: 'sticker' };
-  }
-
-  return { text: '[Unsupported message format]', messageType: 'unknown' };
+  // stickers, reactions, protocol messages, key distribution, polls, etc.
+  return null;
 }
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
 
   try {
-    // 1. Authenticate Request
+    // 1. Authenticate (fail closed)
+    if (!EXPECTED_SECRET) {
+      console.error('[Webhook Auth] WEBHOOK_SECRET is not configured; rejecting request.');
+      return NextResponse.json({ error: 'Webhook not configured' }, { status: 503 });
+    }
     const secretHeader =
       req.headers.get('x-webhook-secret') ||
       req.headers.get('apikey') ||
       req.nextUrl.searchParams.get('secret');
 
-    if (EXPECTED_SECRET && secretHeader !== EXPECTED_SECRET) {
+    if (secretHeader !== EXPECTED_SECRET) {
       console.warn('[Webhook Auth] Unauthorized webhook attempt rejected.');
       return NextResponse.json({ error: 'Unauthorized webhook signature' }, { status: 401 });
     }
@@ -87,17 +101,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
     }
 
-    const event = (payload.event || payload.type || '').toLowerCase();
+    const event = String(payload.event || payload.type || '').toLowerCase().replace(/_/g, '.');
 
-    // 2. Handle Connection Update Event
-    if (event === 'connection.update' || event === 'connection_update') {
-      const state = payload.data?.state || payload.data?.status || 'unknown';
-      console.log(`[Evolution Connection Update] Instance state: ${state}`);
-      return NextResponse.json({ received: true, event: 'connection.update', state }, { status: 200 });
+    // 2. Connection updates: acknowledge only (the admin UI polls live state)
+    if (event === 'connection.update') {
+      return NextResponse.json({ received: true }, { status: 200 });
     }
 
-    // 3. Filter for Message Upsert Events
-    if (event !== 'messages.upsert' && event !== 'messages_upsert') {
+    // 3. Only message upserts matter
+    if (event !== 'messages.upsert') {
       return NextResponse.json({ received: true, ignored_event: event }, { status: 200 });
     }
 
@@ -116,25 +128,34 @@ export async function POST(req: NextRequest) {
     const rawRemoteJid: string = key.remoteJid || '';
     const remoteJidAlt: string = key.remoteJidAlt || key.participantAlt || '';
     const fromMe: boolean = Boolean(key.fromMe);
-    const evolutionMessageId: string = key.id || `gen_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    const pushName: string = messageItem.pushName || '';
+    const pushName: string = fromMe ? '' : messageItem.pushName || '';
 
-    // Ignore Group Chats (@g.us) and Status Broadcasts (status@broadcast)
-    if (IGNORE_GROUPS) {
-      if (rawRemoteJid.endsWith('@g.us') || rawRemoteJid.includes('@broadcast') || rawRemoteJid === 'status@broadcast') {
-        return NextResponse.json({ received: true, filtered: 'group_or_status_message' }, { status: 200 });
-      }
+    if (!rawRemoteJid) {
+      return NextResponse.json({ received: true, filtered: 'no_jid' }, { status: 200 });
     }
 
-    // In Baileys v6 / WhatsApp Multi-Device, if remoteJid ends with @lid, the actual phone number is in remoteJidAlt
-    const effectiveJid = (rawRemoteJid.endsWith('@lid') && remoteJidAlt.includes('@s.whatsapp.net'))
-      ? remoteJidAlt
-      : rawRemoteJid;
+    // Ignore Group Chats (@g.us) and Status Broadcasts (status@broadcast)
+    if (IGNORE_GROUPS && (rawRemoteJid.endsWith('@g.us') || rawRemoteJid.includes('@broadcast'))) {
+      return NextResponse.json({ received: true, filtered: 'group_or_status_message' }, { status: 200 });
+    }
 
+    const extracted = extractMessageContent(messageItem.message);
+    if (!extracted || !extracted.text) {
+      return NextResponse.json({ received: true, filtered: 'no_content' }, { status: 200 });
+    }
+    const { text: contentText, messageType } = extracted;
+
+    const evolutionMessageId: string =
+      key.id || `gen_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+    // In Baileys v6 / multi-device, an @lid remoteJid carries the real number in remoteJidAlt
+    const effectiveJid =
+      rawRemoteJid.endsWith('@lid') && remoteJidAlt.includes('@s.whatsapp.net')
+        ? remoteJidAlt
+        : rawRemoteJid;
     const phoneNumber = (remoteJidAlt ? remoteJidAlt.split('@')[0] : rawRemoteJid.split('@')[0]).replace(/\D/g, '');
-    const { text: contentText, messageType } = extractMessageContent(messageItem.message);
 
-    // 4. Atomic Upsert of Contact into Supabase
+    // 4. Upsert contact (returns what the AI step needs, so no re-read later)
     const { data: contact, error: contactError } = await supabaseAdmin
       .from('wa_contacts')
       .upsert(
@@ -146,7 +167,7 @@ export async function POST(req: NextRequest) {
         },
         { onConflict: 'remote_jid' }
       )
-      .select('id, push_name, lead_status, lead_score')
+      .select('id, push_name, phone_number, lead_status, lead_score, extracted_metadata')
       .single();
 
     if (contactError || !contact) {
@@ -154,7 +175,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to record contact' }, { status: 500 });
     }
 
-    // 5. Insert Message into Supabase
+    // 5. Insert message; duplicates (Evolution retries) are silently ignored
     const { data: messageRecord, error: messageError } = await supabaseAdmin
       .from('wa_messages')
       .upsert(
@@ -164,61 +185,49 @@ export async function POST(req: NextRequest) {
           from_me: fromMe,
           message_type: messageType,
           content: contentText,
-          raw_payload: messageItem,
           ai_processed: false,
         },
-        { onConflict: 'evolution_message_id' }
+        { onConflict: 'evolution_message_id', ignoreDuplicates: true }
       )
       .select('id')
-      .single();
+      .maybeSingle();
 
-    if (messageError || !messageRecord) {
+    if (messageError) {
       console.error('[Database Error] Failed to insert message:', messageError);
       return NextResponse.json({ error: 'Failed to record message' }, { status: 500 });
     }
-
-    // 6. Schedule Asynchronous AI Qualification
-    // Qualify if it's incoming (!fromMe), OR if it's a test inquiry from the user
-    const isTestInquiry = Boolean(
-      fromMe &&
-      contentText &&
-      (contentText.toLowerCase().includes('sofa') ||
-       contentText.toLowerCase().includes('table') ||
-       contentText.toLowerCase().includes('bed') ||
-       contentText.toLowerCase().includes('chair') ||
-       contentText.toLowerCase().includes('price') ||
-       contentText.toLowerCase().includes('cost') ||
-       contentText.toLowerCase().includes('furniture') ||
-       contentText.toLowerCase().includes('hi') ||
-       contentText.toLowerCase().includes('hello'))
-    );
-
-    if ((!fromMe || isTestInquiry) && contentText && !contentText.startsWith('[')) {
-      try {
-        await analyzeLeadMessage(contact.id, messageRecord.id, contentText, contact.push_name);
-      } catch (aiErr: any) {
-        console.error('[AI Qualification Task Error]:', aiErr.message);
-      }
+    if (!messageRecord) {
+      return NextResponse.json({ received: true, duplicate: true }, { status: 200 });
     }
 
-    const duration = Date.now() - startTime;
-    console.log(`[Webhook 200 OK] Message logged in ${duration}ms (Contact ID: ${contact.id})`);
+    // 6. Decide whether this message deserves an AI call
+    const isPlaceholder = contentText.startsWith('[');
+    const shouldAnalyze = fromMe
+      ? STAFF_PAYMENT_HINT.test(contentText)
+      : !isPlaceholder && !LOW_SIGNAL.test(contentText);
 
-    // 7. Return 200 OK immediately within < 500ms
+    if (shouldAnalyze) {
+      const messageId = messageRecord.id;
+      after(async () => {
+        try {
+          await analyzeLeadMessage({
+            contact,
+            messageId,
+            messageText: contentText,
+            fromMe,
+          });
+        } catch (aiErr: any) {
+          console.error('[AI Qualification Task Error]:', aiErr.message);
+        }
+      });
+    }
+
     return NextResponse.json(
-      {
-        success: true,
-        messageId: messageRecord.id,
-        contactId: contact.id,
-        processingTimeMs: duration,
-      },
+      { success: true, processingTimeMs: Date.now() - startTime, analyzing: shouldAnalyze },
       { status: 200 }
     );
   } catch (err: any) {
     console.error('[Webhook Fatal Exception]:', err);
-    return NextResponse.json(
-      { error: 'Internal server processing error', details: err.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server processing error' }, { status: 500 });
   }
 }

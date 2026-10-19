@@ -1,18 +1,25 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import type { WaContact } from '@/lib/db/types';
-import { supabaseClient } from '@/lib/db/supabase-client';
 import { KpiCards } from '@/app/dashboard/components/kpi-cards';
 import { LeadPipeline } from '@/app/dashboard/components/lead-pipeline';
 import { LeadActionModal } from '@/app/dashboard/components/lead-action-modal';
 import { PairingModal } from '@/app/dashboard/components/pairing-modal';
 import { Sparkles, RefreshCw, QrCode, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useVisiblePolling } from '@/hooks/use-visible-polling';
+import { SuggestionsPanel, type SuggestionRow, type ActiveLayby } from './suggestions-panel';
+
+const DATA_POLL_MS = 30_000;
+const STATUS_POLL_MS = 60_000;
 
 export default function AiQualificationPage() {
   const [contacts, setContacts] = useState<WaContact[]>([]);
   const [totalMessagesCount, setTotalMessagesCount] = useState<number>(0);
+  const [suggestions, setSuggestions] = useState<SuggestionRow[]>([]);
+  const [activeLaybys, setActiveLaybys] = useState<ActiveLayby[]>([]);
+  const [suggestionsHint, setSuggestionsHint] = useState<string | null>(null);
   const [selectedContact, setSelectedContact] = useState<WaContact | null>(null);
   const [isPairModalOpen, setIsPairModalOpen] = useState(false);
   const [isRefreshingStatus, setIsRefreshingStatus] = useState(false);
@@ -27,7 +34,7 @@ export default function AiQualificationPage() {
     spaceReachable: true,
   });
 
-  // 1. Fetch Evolution API & Gateway connection status
+  // Evolution API & gateway connection status
   const checkStatus = useCallback(async () => {
     setIsRefreshingStatus(true);
     try {
@@ -40,108 +47,60 @@ export default function AiQualificationPage() {
         latencyMs: data.latencyMs,
       });
     } catch {
-      setConnectionStatus({
-        connected: false,
-        state: 'close',
-        spaceReachable: false,
-      });
+      setConnectionStatus({ connected: false, state: 'close', spaceReachable: false });
     } finally {
       setIsRefreshingStatus(false);
     }
   }, []);
 
-  // 2. Fetch Initial Contacts & Message Counts
+  // Contacts + message count (server route, admin-only)
   const loadDashboardData = useCallback(async () => {
     try {
-      // 1. Prioritize reliable server API route
       const res = await fetch('/api/admin/contacts', { cache: 'no-store' });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && Array.isArray(json.contacts)) {
-          setContacts(json.contacts as WaContact[]);
-          if (typeof json.totalMessagesCount === 'number') {
-            setTotalMessagesCount(json.totalMessagesCount);
-          }
-          return;
-        }
-      }
-
-      // 2. Fallback to direct client query
-      const { data: contactsData, error: contactsError } = await supabaseClient
-        .from('wa_contacts')
-        .select('*')
-        .order('last_message_at', { ascending: false });
-
-      if (!contactsError && contactsData) {
-        setContacts(contactsData as WaContact[]);
-      }
-
-      const { count, error: countError } = await supabaseClient
-        .from('wa_messages')
-        .select('*', { count: 'exact', head: true });
-
-      if (!countError && count !== null) {
-        setTotalMessagesCount(count);
+      if (!res.ok) return;
+      const json = await res.json();
+      if (json.success && Array.isArray(json.contacts)) {
+        setContacts(json.contacts as WaContact[]);
+        if (typeof json.totalMessagesCount === 'number') setTotalMessagesCount(json.totalMessagesCount);
+        // keep an open lead modal in sync with fresh AI data
+        setSelectedContact((current) =>
+          current ? (json.contacts as WaContact[]).find((c) => c.id === current.id) ?? current : current
+        );
       }
     } catch (err) {
       console.warn('Could not query contacts:', err);
     }
   }, []);
 
-  useEffect(() => {
-    loadDashboardData();
-    checkStatus();
-
-    // Poll status and dashboard data regularly for instant updates
-    const interval = setInterval(() => {
-      checkStatus();
-      loadDashboardData();
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [loadDashboardData, checkStatus]);
-
-  // 3. Supabase Realtime Subscriptions for wa_contacts
-  useEffect(() => {
+  const loadSuggestions = useCallback(async () => {
     try {
-      const channel = supabaseClient
-        .channel('realtime:wa_contacts_ai_qualification')
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'wa_contacts' },
-          (payload) => {
-            const newContact = payload.new as WaContact;
-            setContacts((prev) => [newContact, ...prev.filter((c) => c.id !== newContact.id)]);
-          }
-        )
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'wa_contacts' },
-          (payload) => {
-            const updatedContact = payload.new as WaContact;
-            setContacts((prev) =>
-              prev.map((c) => (c.id === updatedContact.id ? updatedContact : c))
-            );
-            setSelectedContact((current) =>
-              current?.id === updatedContact.id ? updatedContact : current
-            );
-          }
-        )
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'wa_messages' },
-          () => {
-            setTotalMessagesCount((prev) => prev + 1);
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabaseClient.removeChannel(channel);
-      };
+      const res = await fetch('/api/admin/suggestions', { cache: 'no-store' });
+      if (!res.ok) return;
+      const json = await res.json();
+      setSuggestions((json.suggestions || []) as SuggestionRow[]);
+      setActiveLaybys((json.laybys || []) as ActiveLayby[]);
+      setSuggestionsHint(
+        json.success === false
+          ? 'AI suggestions are unavailable: run the latest Supabase migration (20261019000004) to enable them.'
+          : null
+      );
     } catch (err) {
-      console.warn('Realtime channel error:', err);
+      console.warn('Could not load suggestions:', err);
     }
   }, []);
+
+  const refreshAll = useCallback(() => {
+    void loadDashboardData();
+    void loadSuggestions();
+    void checkStatus();
+  }, [loadDashboardData, loadSuggestions, checkStatus]);
+
+  // Poll only while the tab is visible (replaces realtime + 10s polling)
+  useVisiblePolling(() => {
+    void loadDashboardData();
+    void loadSuggestions();
+  }, DATA_POLL_MS);
+  useVisiblePolling(checkStatus, STATUS_POLL_MS);
 
   const qualifiedCount = contacts.filter(
     (c) => c.lead_status === 'QUALIFIED_LEAD' || c.lead_score >= 55
@@ -161,21 +120,12 @@ export default function AiQualificationPage() {
             AI Lead Qualification & WhatsApp Gateway
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Real-time AI qualification, BANT scoring, live chat inspector, and WhatsApp gateway pairing.
+            AI lead scoring, suggested database actions, live chat inspector, and WhatsApp gateway pairing.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              loadDashboardData();
-              checkStatus();
-            }}
-            disabled={isRefreshingStatus}
-            className="gap-2"
-          >
+          <Button variant="outline" size="sm" onClick={refreshAll} disabled={isRefreshingStatus} className="gap-2">
             <RefreshCw className={`h-4 w-4 ${isRefreshingStatus ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
           </Button>
@@ -202,18 +152,25 @@ export default function AiQualificationPage() {
         isRefreshing={isRefreshingStatus}
       />
 
+      {/* AI suggested database actions (admin approves) */}
+      <SuggestionsPanel
+        suggestions={suggestions}
+        laybys={activeLaybys}
+        hint={suggestionsHint}
+        onChanged={() => {
+          void loadSuggestions();
+          void loadDashboardData();
+        }}
+      />
+
       {/* AI Lead Pipeline Section */}
       <div className="space-y-4 pt-2">
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
             <Layers className="w-5 h-5 text-primary" />
-            <h2 className="text-base font-semibold text-foreground">
-              Inbound Furniture Lead Stream & AI Scoring
-            </h2>
+            <h2 className="text-base font-semibold text-foreground">Inbound Furniture Lead Stream & AI Scoring</h2>
           </div>
-          <span className="text-xs text-muted-foreground">
-            Live updates synchronized via Supabase WebSocket
-          </span>
+          <span className="text-xs text-muted-foreground">Auto-refreshes every 30 seconds</span>
         </div>
 
         <LeadPipeline
@@ -224,19 +181,14 @@ export default function AiQualificationPage() {
       </div>
 
       {/* Lead Action & Stock Integration Modal */}
-      {selectedContact && (
-        <LeadActionModal
-          contact={selectedContact}
-          onClose={() => setSelectedContact(null)}
-        />
-      )}
+      {selectedContact && <LeadActionModal contact={selectedContact} onClose={() => setSelectedContact(null)} />}
 
       {/* Dual QR Code & 8-Digit Pairing Modal */}
       <PairingModal
         isOpen={isPairModalOpen}
         onClose={() => setIsPairModalOpen(false)}
         onSuccess={() => {
-          checkStatus();
+          void checkStatus();
         }}
       />
     </div>

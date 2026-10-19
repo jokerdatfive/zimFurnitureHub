@@ -1,12 +1,12 @@
-import { createClient } from "@/utils/supabase/server";
+import { supabaseAdmin } from "@/lib/db/supabase-admin";
 import { Handshake, Calendar, DollarSign, CheckCircle2, XCircle, Clock, Plus } from "lucide-react";
 import Link from "next/link";
 import { createPromise, updatePromiseStatus } from "./actions";
 
 export default async function PromisesPage() {
-  const supabase = await createClient();
-
-  const { data: promisesData } = await supabase
+  // Service-role client: the admin portal uses a cookie session, not a Supabase login,
+  // so the RLS-bound server client would see no rows.
+  const { data: promisesData } = await supabaseAdmin
     .from("promises")
     .select(`
       id,
@@ -16,18 +16,20 @@ export default async function PromisesPage() {
       status,
       notes,
       created_at,
-      contact:whatsapp_contacts(id, profile_name, phone, wa_id),
-      lead:leads(id, name, interested_in)
+      wa_contact:wa_contacts(id, push_name, phone_number),
+      contact:whatsapp_contacts(id, profile_name, phone, wa_id)
     `)
-    .order("promised_date", { ascending: true });
+    .order("promised_date", { ascending: true })
+    .limit(300);
 
   const promises = (promisesData || []) as any[];
 
   // Fetch contacts for dropdown
-  const { data: contactsData } = await supabase
-    .from("whatsapp_contacts")
-    .select("id, profile_name, phone, wa_id")
-    .order("profile_name", { ascending: true });
+  const { data: contactsData } = await supabaseAdmin
+    .from("wa_contacts")
+    .select("id, push_name, phone_number")
+    .order("last_message_at", { ascending: false })
+    .limit(300);
   const contacts = contactsData || [];
 
   // Metrics
@@ -109,7 +111,7 @@ export default async function PromisesPage() {
                   <option value="">Select WhatsApp Contact</option>
                   {contacts.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.profile_name} ({c.phone || c.wa_id})
+                      {c.push_name || "WhatsApp Customer"} (+{c.phone_number})
                     </option>
                   ))}
                 </select>
@@ -202,11 +204,11 @@ export default async function PromisesPage() {
                       <tr key={p.id} className="hover:bg-secondary/10 transition-colors">
                         <td className="px-6 py-4">
                           <div className="font-medium text-foreground">
-                            {p.contact?.profile_name || "Customer"}
+                            {p.wa_contact?.push_name || p.contact?.profile_name || "Customer"}
                           </div>
-                          {p.contact?.phone && (
+                          {(p.wa_contact?.phone_number || p.contact?.phone) && (
                             <div className="text-[11px] font-mono text-muted-foreground mt-0.5">
-                              {p.contact.phone}
+                              {p.wa_contact?.phone_number ? `+${p.wa_contact.phone_number}` : p.contact?.phone}
                             </div>
                           )}
                         </td>

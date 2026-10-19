@@ -45,7 +45,6 @@ export interface WaMessage {
   from_me: boolean;
   message_type: 'text' | 'audio' | 'image' | 'document' | string;
   content: string | null;
-  raw_payload?: any;
   ai_processed: boolean;
   intent: string | null;
   urgency: UrgencyLevel | null;
@@ -62,9 +61,11 @@ export interface AILeadAnalysisResult {
     | 'layby_request'
     | 'order_placement'
     | 'payment_promise'
+    | 'payment_confirmation'
     | 'booking_request'
     | 'customer_support'
     | 'general_greeting'
+    | 'casual_conversation'
     | 'spam';
   urgency: UrgencyLevel;
   summary: string;
@@ -87,4 +88,20 @@ export interface EvolutionConnectionState {
   instance: string;
   state: 'open' | 'connecting' | 'close' | 'refused' | string;
   status: number;
+}
+
+export type SuggestionKind = 'PAYMENT_CONFIRMED' | 'LAYBY_REQUEST' | 'PROMISE' | 'ORDER';
+
+export interface AiSuggestion {
+  id: string;
+  contact_id: string;
+  source_message_id: string | null;
+  kind: SuggestionKind;
+  title: string;
+  detail: string | null;
+  payload: Record<string, any>;
+  status: 'PENDING' | 'APPLIED' | 'DISMISSED';
+  created_at: string;
+  resolved_at: string | null;
+  contact?: { push_name: string | null; phone_number: string } | null;
 }

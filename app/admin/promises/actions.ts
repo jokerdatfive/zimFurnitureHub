@@ -1,10 +1,11 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { supabaseAdmin } from "@/lib/db/supabase-admin";
+import { isAuthenticatedAdmin } from "@/lib/auth/admin-auth";
 import { revalidatePath } from "next/cache";
 
 export async function createPromise(formData: FormData) {
-  const supabase = await createClient();
+  if (!(await isAuthenticatedAdmin())) return { error: "Not authorized" };
 
   const contactId = formData.get("contactId") as string;
   const promiseType = formData.get("promiseType") as string;
@@ -12,8 +13,8 @@ export async function createPromise(formData: FormData) {
   const promisedDate = formData.get("promisedDate") as string;
   const notes = formData.get("notes") as string;
 
-  const { error } = await supabase.from("promises").insert({
-    contact_id: contactId || null,
+  const { error } = await supabaseAdmin.from("promises").insert({
+    wa_contact_id: contactId || null,
     promise_type: promiseType || "PAYMENT",
     promised_amount: promisedAmount,
     promised_date: promisedDate || null,
@@ -30,9 +31,9 @@ export async function createPromise(formData: FormData) {
 }
 
 export async function updatePromiseStatus(promiseId: string, status: string) {
-  const supabase = await createClient();
+  if (!(await isAuthenticatedAdmin())) return { error: "Not authorized" };
 
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from("promises")
     .update({ status })
     .eq("id", promiseId);

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { WaContact, WaMessage } from '@/lib/db/types';
-import { supabaseClient } from '@/lib/db/supabase-client';
+import { useVisiblePolling } from '@/hooks/use-visible-polling';
 import {
   X,
   Send,
@@ -40,88 +40,32 @@ export function ChatInspector({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  useEffect(() => {
-    if (!contact) return;
-
-    let isMounted = true;
-    setLoadingMessages(true);
-
-    const fetchThread = async () => {
-      try {
-        const res = await fetch(`/api/admin/contacts?contactId=${encodeURIComponent(contact.id)}`, { cache: 'no-store' });
-        if (res.ok) {
-          const json = await res.json();
-          if (json.success && Array.isArray(json.messages)) {
-            if (isMounted) {
-              setMessages(json.messages as WaMessage[]);
-              setLoadingMessages(false);
-              setTimeout(scrollToBottom, 100);
-            }
-            return;
-          }
-        }
-      } catch {}
-
-      const { data, error } = await supabaseClient
-        .from('wa_messages')
-        .select('*')
-        .eq('contact_id', contact.id)
-        .order('created_at', { ascending: true });
-
-      if (isMounted) {
-        if (!error && data) {
-          setMessages(data as WaMessage[]);
-        }
-        setLoadingMessages(false);
-        setTimeout(scrollToBottom, 100);
+  // Load this thread on open, then refresh every 15s while the tab is visible
+  const contactId = contact?.id;
+  const loadThread = useCallback(async () => {
+    if (!contactId) return;
+    try {
+      const res = await fetch(`/api/admin/contacts?contactId=${encodeURIComponent(contactId)}`, { cache: 'no-store' });
+      if (!res.ok) return;
+      const json = await res.json();
+      if (json.success && Array.isArray(json.messages)) {
+        setMessages((prev) => {
+          const next = json.messages as WaMessage[];
+          const grew = next.length !== prev.length;
+          if (grew) setTimeout(scrollToBottom, 100);
+          return grew || next.some((m, i) => m.ai_processed !== prev[i]?.ai_processed) ? next : prev;
+        });
       }
-    };
+    } catch {}
+    setLoadingMessages(false);
+  }, [contactId]);
 
-    fetchThread();
+  useEffect(() => {
+    setMessages([]);
+    setLoadingMessages(Boolean(contactId));
+  }, [contactId]);
 
-    const channel = supabaseClient
-      .channel(`chat-thread-${contact.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'wa_messages',
-          filter: `contact_id=eq.${contact.id}`,
-        },
-        (payload) => {
-          const newMsg = payload.new as WaMessage;
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === newMsg.id || m.evolution_message_id === newMsg.evolution_message_id)) {
-              return prev;
-            }
-            return [...prev, newMsg];
-          });
-          setTimeout(scrollToBottom, 100);
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'wa_messages',
-          filter: `contact_id=eq.${contact.id}`,
-        },
-        (payload) => {
-          const updatedMsg = payload.new as WaMessage;
-          setMessages((prev) =>
-            prev.map((m) => (m.id === updatedMsg.id ? updatedMsg : m))
-          );
-        }
-      )
-      .subscribe();
-
-    return () => {
-      isMounted = false;
-      supabaseClient.removeChannel(channel);
-    };
-  }, [contact?.id]);
+  useVisiblePolling(loadThread, 15_000, Boolean(contactId));
 
   if (!contact) return null;
 
@@ -149,6 +93,7 @@ export function ChatInspector({
         throw new Error(data.error || 'Failed to send WhatsApp message');
       }
 
+      void loadThread();
       if (onContactUpdated) onContactUpdated();
     } catch (err: any) {
       alert(`Send Error: ${err.message}`);

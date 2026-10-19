@@ -32,6 +32,12 @@ sudo docker run -d \
   -e DATABASE_PROVIDER=postgresql \
   -e DATABASE_CONNECTION_URI="postgresql://postgres.tongnlfwkkjgenqxnqbr:Nzvere%401225@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?schema=evolution" \
   -e DATABASE_SAVE_DATA_INSTANCE=true \
+  -e DATABASE_SAVE_DATA_NEW_MESSAGE=false \
+  -e DATABASE_SAVE_MESSAGE_UPDATE=false \
+  -e DATABASE_SAVE_DATA_CONTACTS=false \
+  -e DATABASE_SAVE_DATA_CHATS=false \
+  -e DATABASE_SAVE_DATA_LABELS=false \
+  -e DATABASE_SAVE_DATA_HISTORIC=false \
   -e CACHE_REDIS_ENABLED=true \
   -e CACHE_REDIS_URI="rediss://default:gQAAAAAAAgTEAAIgcDFlMjgwZjNkOWZjMjA0NmFjODZmMDgyNmFlNjU5YzVhOA@ace-werewolf-132292.upstash.io:6379" \
   -e CACHE_REDIS_SAVE_INSTANCES=true \

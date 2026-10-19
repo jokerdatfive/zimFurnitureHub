@@ -20,11 +20,9 @@ export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
   const secretParam = req.nextUrl.searchParams.get('secret');
 
-  if (cronSecret) {
-    const bearer = authHeader?.replace('Bearer ', '');
-    if (bearer !== cronSecret && secretParam !== cronSecret) {
-      return NextResponse.json({ error: 'Unauthorized cron request' }, { status: 401 });
-    }
+  const bearer = authHeader?.replace('Bearer ', '');
+  if (!cronSecret || (bearer !== cronSecret && secretParam !== cronSecret)) {
+    return NextResponse.json({ error: 'Unauthorized cron request' }, { status: 401 });
   }
 
   const startTime = Date.now();

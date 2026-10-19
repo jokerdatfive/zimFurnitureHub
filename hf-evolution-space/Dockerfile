@@ -22,3 +22,15 @@ EXPOSE 7860
 ENV SERVER_PORT=7860
 ENV PORT=7860
 ENV DOCKER_ENV=true
+
+# --- Keep the Supabase database small -------------------------------------------
+# Evolution stores every message, chat, contact and status update in Postgres by
+# default. The Next.js app keeps its own trimmed copy (wa_contacts / wa_messages),
+# so only the WhatsApp session itself needs to be persisted.
+ENV DATABASE_SAVE_DATA_INSTANCE=true
+ENV DATABASE_SAVE_DATA_NEW_MESSAGE=false
+ENV DATABASE_SAVE_MESSAGE_UPDATE=false
+ENV DATABASE_SAVE_DATA_CONTACTS=false
+ENV DATABASE_SAVE_DATA_CHATS=false
+ENV DATABASE_SAVE_DATA_LABELS=false
+ENV DATABASE_SAVE_DATA_HISTORIC=false
