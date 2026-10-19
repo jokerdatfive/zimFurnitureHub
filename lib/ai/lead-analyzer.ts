@@ -4,8 +4,8 @@
  * KK Furnitures / ZimFurnitureHub
  * ==============================================================================
  * Analyzes WhatsApp inbound conversations with full context, scores lead potential (0-100),
- * detects Laybys, Pending Orders, EcoCash payment promises, and delivery inquiries,
- * and seamlessly synchronizes records in Supabase (leads, layby_agreements, promises).
+ * accurately detects Laybys, Pending Orders, EcoCash payment promises, and delivery inquiries,
+ * and seamlessly synchronizes records without inventing fake prices or fake budgets.
  * ==============================================================================
  */
 
@@ -18,7 +18,7 @@ import type { AILeadAnalysisResult, LeadStatus, UrgencyLevel } from '../db/types
 
 // Enhanced Zod schema capturing deep retail context (Layby, Pending Orders, Promises)
 export const LeadAnalysisSchema = z.object({
-  is_lead: z.boolean().describe('Whether the user is an active prospect, customer, or lead (false if spam or irrelevant)'),
+  is_lead: z.boolean().describe('True if the user is inquiring about furniture, purchasing, layby, or showroom catalog. False if casual chat, wrong number, or unrelated.'),
   lead_status: z.enum([
     'NEW',
     'QUALIFIED_LEAD',
@@ -27,9 +27,9 @@ export const LeadAnalysisSchema = z.object({
     'SPAM',
     'IRRELEVANT',
   ]).describe(
-    'HOT_LEAD: ready to purchase furniture or high urgency; QUALIFIED_LEAD: matches product with budget/interest; SUPPORT: existing customer needing delivery/assembly assistance; SPAM: marketing/automated spam; IRRELEVANT: wrong number or unrelated.'
+    'HOT_LEAD: ready to purchase furniture or high urgency; QUALIFIED_LEAD: matches product with clear inquiry; SUPPORT: existing customer needing delivery/assembly assistance; SPAM: marketing/automated spam; IRRELEVANT: casual talk, greeting without inquiry, wrong number.'
   ),
-  lead_score: z.number().min(0).max(100).describe('Qualification score from 0 (spam/irrelevant) to 100 (ready to buy immediately)'),
+  lead_score: z.number().min(0).max(100).describe('Qualification score from 0 (spam/irrelevant/casual) to 100 (ready to buy immediately)'),
   intent: z.enum([
     'pricing_inquiry',
     'ready_to_buy',
@@ -39,26 +39,27 @@ export const LeadAnalysisSchema = z.object({
     'booking_request',
     'customer_support',
     'general_greeting',
+    'casual_conversation',
     'spam',
   ]).describe('Primary objective or intent of the user in this interaction'),
   urgency: z.enum(['LOW', 'MEDIUM', 'HIGH']).describe('Urgency level based on explicit timelines or tone'),
   summary: z.string().describe('Concise, 1-2 sentence executive summary of the lead, their furniture need, and background context'),
   
   // Specific retail intelligence
-  is_layby: z.boolean().describe('True if customer inquired about or requested a layby / installment plan / down-payment'),
+  is_layby: z.boolean().describe('True if customer explicitly inquired about or requested a layby / installment plan / down-payment'),
   is_pending_order: z.boolean().describe('True if customer placed an order or requested delivery for a specific product'),
   is_payment_promise: z.boolean().describe('True if customer promised to make a payment or visit showroom by a specific date'),
   
   extracted_data: z.object({
-    budget: z.string().nullable().describe('Budget stated or inferred (e.g. "$500" or "$250 cash/layby"), or null'),
-    product_or_service: z.string().nullable().describe('Specific furniture piece inquired about (e.g. 3pc Washed Oak Modular Kitchen Suite, L-shape velvet sofa, 6-door wardrobe), or null'),
-    timeline: z.string().nullable().describe('Expected delivery/collection timeline (e.g. "immediately", "this weekend", "end of month"), or null'),
+    budget: z.string().nullable().describe('STRICT: ONLY record if the customer explicitly stated a budget (e.g. "my budget is $200" or "I have $300 max"). If not explicitly mentioned by the customer, MUST BE NULL. Never guess or fabricate a budget.'),
+    product_or_service: z.string().nullable().describe('Specific furniture piece inquired about (e.g. 3pc Washed Oak Modular Kitchen Suite, L-shape velvet sofa, 6-door wardrobe), or null if none mentioned'),
+    timeline: z.string().nullable().describe('Expected delivery/collection timeline, or null'),
     payment_method: z.enum(['EcoCash', 'USD_Cash', 'Bank_Transfer', 'Layby', 'In_Store', 'Not_Specified']).describe('Payment method mentioned or preferred'),
-    agreed_price: z.number().nullable().describe('Quoted or agreed total price in USD, or null'),
+    agreed_price: z.number().nullable().describe('STRICT: ONLY record if a specific price was quoted and agreed upon in the chat. Do not invent a price if not stated. Otherwise null.'),
     deposit_amount: z.number().nullable().describe('Deposit or down-payment offered in USD, or null'),
-    promised_payment_date: z.string().nullable().describe('Date customer promised to pay or visit (e.g. "2026-10-20" or "Friday"), or null'),
+    promised_payment_date: z.string().nullable().describe('Date customer promised to pay or visit, or null'),
     delivery_location: z.string().nullable().describe('Delivery address or city (e.g. "Harare", "Avondale", "Chitungwiza", "Bulawayo"), or null'),
-    action_required: z.string().describe('Exact immediate action required by KK Furnitures sales rep (e.g. "Send EcoCash merchant code for $100 layby deposit for 3pc Washed Oak Kitchen Suite")'),
+    action_required: z.string().describe('Exact immediate action required by KK Furnitures sales rep'),
   }),
 });
 
@@ -85,10 +86,39 @@ function getAIModel() {
 }
 
 /**
- * Fallback heuristic retail analyzer for offline / testing mode when Google API key is not yet set
+ * Heuristic retail analyzer with strict checks against fake prices and casual chat
  */
 function heuristicRetailAnalysis(text: string, previousHistory: string): z.infer<typeof LeadAnalysisSchema> {
   const lower = (text + ' ' + previousHistory).toLowerCase();
+
+  // 1. Detect if this is just casual talk / greetings with no furniture buying intent
+  const hasFurnitureKeyword = /kitchen|sofa|couch|wardrobe|bed|dining|furniture|table|chair|suite|dresser|mattress|headboard|oak|wood|catalog|price|cost|how\s*much|stock/i.test(lower);
+  const isPureGreeting = /^(hi|hello|hey|mhoro|maswera|good\s*(morning|afternoon|evening)|how\s*are\s*you|ok|sharp)[!.,\s]*$/i.test(text.trim());
+
+  if (!hasFurnitureKeyword && (isPureGreeting || lower.length < 30)) {
+    return {
+      is_lead: false,
+      lead_status: 'IRRELEVANT',
+      lead_score: 10,
+      intent: 'general_greeting',
+      urgency: 'LOW',
+      summary: 'Casual greeting or non-commercial message with no furniture inquiry.',
+      is_layby: false,
+      is_pending_order: false,
+      is_payment_promise: false,
+      extracted_data: {
+        budget: null,
+        product_or_service: null,
+        timeline: null,
+        payment_method: 'Not_Specified',
+        agreed_price: null,
+        deposit_amount: null,
+        promised_payment_date: null,
+        delivery_location: null,
+        action_required: 'Send standard showroom greeting and product catalog.',
+      },
+    };
+  }
 
   const isLayby = /layby|lay-by|installment|deposit|down\s*payment|month.*pay|pay.*later/i.test(lower);
   const isOrder = /order|deliver|buy|take\s*it|purchase|send\s*to|bring\s*it/i.test(lower);
@@ -96,9 +126,13 @@ function heuristicRetailAnalysis(text: string, previousHistory: string): z.infer
   const isEcoCash = /ecocash|eco\s*cash/i.test(lower);
   const isCash = /cash|usd\s*cash|hard\s*currency/i.test(lower);
 
-  // Extract price/deposit match
-  const dollarMatch = lower.match(/\$?\s*(\d+(\.\d{1,2})?)\s*(usd|\$)?/i);
-  const extractedNumber = dollarMatch ? parseFloat(dollarMatch[1]) : null;
+  // STRICT budget extraction: only if customer explicitly says "budget is $X" or "have $X"
+  const budgetMatch = lower.match(/(?:budget\s*(?:is|of)?|have|got)\s*(?:\$|usd)?\s*(\d{2,4})/i);
+  const explicitBudget = budgetMatch ? `$${budgetMatch[1]}` : null;
+
+  // Deposit extraction for layby
+  const depositMatch = lower.match(/(?:deposit|down\s*payment|initial)\s*(?:of)?\s*(?:\$|usd)?\s*(\d{2,4})/i);
+  const explicitDeposit = depositMatch ? parseFloat(depositMatch[1]) : null;
 
   // Extract furniture type
   let product = null;
@@ -111,12 +145,12 @@ function heuristicRetailAnalysis(text: string, previousHistory: string): z.infer
   let status: 'NEW' | 'QUALIFIED_LEAD' | 'HOT_LEAD' | 'SUPPORT' | 'SPAM' | 'IRRELEVANT' = 'QUALIFIED_LEAD';
   let score = 65;
 
-  if (isOrder || (isLayby && extractedNumber)) {
+  if (isOrder || (isLayby && explicitDeposit)) {
     status = 'HOT_LEAD';
     score = 90;
-  } else if (/hello|hi|good\s*morning|mhoro/i.test(lower) && lower.length < 25) {
-    status = 'NEW';
-    score = 35;
+  } else if (!hasFurnitureKeyword) {
+    status = 'IRRELEVANT';
+    score = 20;
   }
 
   let paymentMethod: 'EcoCash' | 'USD_Cash' | 'Bank_Transfer' | 'Layby' | 'In_Store' | 'Not_Specified' = 'Not_Specified';
@@ -125,23 +159,25 @@ function heuristicRetailAnalysis(text: string, previousHistory: string): z.infer
   else if (isLayby) paymentMethod = 'Layby';
 
   return {
-    is_lead: true,
+    is_lead: hasFurnitureKeyword,
     lead_status: status,
     lead_score: score,
     intent: isLayby ? 'layby_request' : isOrder ? 'order_placement' : isPromise ? 'payment_promise' : 'pricing_inquiry',
     urgency: isOrder ? 'HIGH' : isLayby ? 'MEDIUM' : 'LOW',
-    summary: `Customer inquired about ${product || 'furniture'} with ${paymentMethod} interest.`,
+    summary: hasFurnitureKeyword
+      ? `Customer inquired about ${product || 'furniture piece'} (${paymentMethod !== 'Not_Specified' ? paymentMethod : 'inquiry'}).`
+      : 'Casual conversation; no commercial furniture inquiry detected.',
     is_layby: isLayby,
     is_pending_order: isOrder,
     is_payment_promise: isPromise,
     extracted_data: {
-      budget: extractedNumber ? `$${extractedNumber}` : null,
+      budget: explicitBudget,
       product_or_service: product,
-      timeline: isOrder ? 'Immediate / Soon' : 'Within 30 days',
+      timeline: isOrder ? 'Immediate / Soon' : null,
       payment_method: paymentMethod,
-      agreed_price: extractedNumber && !isLayby ? extractedNumber : null,
-      deposit_amount: isLayby && extractedNumber ? extractedNumber : null,
-      promised_payment_date: isPromise ? 'End of week' : null,
+      agreed_price: null, // DO NOT fabricate fake agreed prices
+      deposit_amount: explicitDeposit,
+      promised_payment_date: isPromise ? 'Customer promised follow-up' : null,
       delivery_location: /harare|avondale|borrowdale|chitungwiza|bulawayo/i.exec(lower)?.[0] || null,
       action_required: isLayby
         ? `Send layby agreement terms and EcoCash details for ${product || 'furniture'}.`
@@ -193,16 +229,16 @@ export async function analyzeLeadMessage(
 
     // 2. Formulate Prompt
     const systemPrompt = `You are an elite AI Sales Qualification Specialist and Lead Scoring Engine for KK Furnitures (ZimFurnitureHub, Zimbabwe).
-Your job is to analyze WhatsApp conversations in real-time, determine the customer's intent, calculate a lead qualification score (0-100), extract BANT criteria (Budget, Authority, Need, Timeline), detect Layby inquiries/orders, EcoCash/cash payment promises, and pending orders.
+Your job is to analyze WhatsApp conversations in real-time, determine the customer's intent, calculate a lead qualification score (0-100), extract BANT criteria, detect Layby inquiries/orders, EcoCash/cash payment promises, and pending orders.
 
-Zimbabwean Retail Rules:
-- Layby: Customer pays a deposit (e.g. $50, $100) and pays the remaining balance over 1-3 months before collection/delivery.
-- Payment Methods: EcoCash (mobile money), Cash USD (in-person or cash-on-delivery), Bank Transfer.
-- HOT_LEAD (Score 80-100): Customer explicitly wants to order, asked for layby deposit instructions, requested delivery to a specific Harare/Zimbabwe suburb, or agreed on a price.
-- QUALIFIED_LEAD (Score 55-79): Concrete furniture inquiry (kitchen suite, sectional sofa, wardrobe, bed), asking about colors, wood finishes, or dimensions.
-- SUPPORT (Score 40-70): Post-purchase delivery tracking, assembly help.
-- NEW (Score 20-50): General greeting ("hi", "how much"), broad questions.
-- SPAM (Score 0-15): Solicitations, broadcast spam, wrong number.`;
+CRITICAL ACCURACY & NO-FAKE-DATA RULES:
+1. DO NOT PUT FAKE BUDGETS OR FAKE PRICES:
+   - Only set 'budget' if the customer EXPLICITLY stated how much they have or their budget limit (e.g., "I only have $200" or "my budget is $300").
+   - If the customer just asks "how much is this?", budget MUST BE NULL. Never guess a budget.
+   - 'agreed_price' must ONLY be set if a price was explicitly quoted and accepted by both sides. Otherwise MUST BE NULL.
+2. DO NOT TREAT CASUAL CHAT AS LEADS:
+   - If the message is just a friendly greeting ("hi", "morning", "how are you"), a wrong number, or casual talking that has NOTHING to do with buying or inquiring about furniture, set is_lead: false, lead_status: 'IRRELEVANT', intent: 'casual_conversation', lead_score: 10.
+   - Only classify as QUALIFIED_LEAD or HOT_LEAD if the person is actually inquiring about furniture or looking to buy.`;
 
     const userPrompt = `Analyze the following WhatsApp conversation context:
 
@@ -235,11 +271,11 @@ Output the structured qualification analysis.`;
     }
 
     console.log(`[AI Engine] Qualification completed for contact ${contactId}:`, {
+      is_lead: analysis.is_lead,
       status: analysis.lead_status,
       score: analysis.lead_score,
       intent: analysis.intent,
-      is_layby: analysis.is_layby,
-      is_pending_order: analysis.is_pending_order,
+      budget: analysis.extracted_data.budget,
     });
 
     // 3. Update wa_messages with AI processing details
@@ -262,7 +298,7 @@ Output the structured qualification analysis.`;
     const previousMetadata = currentContact?.extracted_metadata || {};
     const mergedMetadata = {
       ...previousMetadata,
-      budget: analysis.extracted_data.budget || previousMetadata.budget || null,
+      budget: analysis.extracted_data.budget || null, // Never fall back to fake budgets
       product_interest: analysis.extracted_data.product_or_service || previousMetadata.product_interest || null,
       timeline: analysis.extracted_data.timeline || previousMetadata.timeline || null,
       payment_method: analysis.extracted_data.payment_method || previousMetadata.payment_method || null,
@@ -287,12 +323,12 @@ Output the structured qualification analysis.`;
       })
       .eq('id', contactId);
 
-    // 5. Automatic Retail Bridge to Supabase Core CRM:
-    // If it's a Layby Request with a product:
-    if (analysis.is_layby && (analysis.extracted_data.product_or_service || analysis.extracted_data.deposit_amount)) {
+    // 5. Automatic Retail Bridge to Layby Agreements:
+    // Only if it's a Layby Request with an actual product and agreed amount:
+    if (analysis.is_layby && analysis.extracted_data.product_or_service && analysis.extracted_data.agreed_price) {
       try {
-        const productName = analysis.extracted_data.product_or_service || 'Custom Furniture Order';
-        const totalPrice = analysis.extracted_data.agreed_price || 350.0;
+        const productName = analysis.extracted_data.product_or_service;
+        const totalPrice = analysis.extracted_data.agreed_price;
         const depositPaid = analysis.extracted_data.deposit_amount || 0.0;
         const balanceDue = Math.max(0, totalPrice - depositPaid);
 
@@ -303,25 +339,10 @@ Output the structured qualification analysis.`;
           deposit_paid: depositPaid,
           balance_due: balanceDue,
           status: 'ACTIVE',
-          notes: `Auto-captured via WhatsApp AI: ${analysis.summary}`,
+          notes: `Captured via WhatsApp AI: ${analysis.summary}`,
         });
       } catch (laybyErr) {
-        console.warn('[AI Engine] Note: Could not auto-insert layby agreement (may already exist or schema unmigrated):', laybyErr);
-      }
-    }
-
-    // If it's a Payment Promise:
-    if (analysis.is_payment_promise && analysis.extracted_data.promised_payment_date) {
-      try {
-        await supabaseAdmin.from('promises').insert({
-          contact_id: contactId,
-          promise_type: 'PAYMENT',
-          promised_amount: analysis.extracted_data.deposit_amount || analysis.extracted_data.agreed_price || null,
-          status: 'PENDING',
-          notes: `Promise captured via WhatsApp: ${analysis.extracted_data.action_required}`,
-        });
-      } catch (promiseErr) {
-        console.warn('[AI Engine] Note: Could not auto-insert promise:', promiseErr);
+        console.warn('[AI Engine] Note: Could not auto-insert layby agreement:', laybyErr);
       }
     }
 

@@ -1,5 +1,3 @@
-import { createClient } from "@/utils/supabase/server";
-import { redirect } from "next/navigation";
 import {
   Boxes,
   TrendingUp,
@@ -15,7 +13,10 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { logStockMovement, quickUpdateStock } from "./actions";
-import { CATALOG_PRODUCTS } from "@/lib/catalog-data";
+import { getProducts, getStockMovements } from "@/lib/db/unified-store";
+import Link from "next/link";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Stock & Asset Management | KK Furnitures Admin",
@@ -23,79 +24,8 @@ export const metadata = {
 };
 
 export default async function StockManagementPage() {
-  const supabase = await createClient();
-
-  // 1. Fetch Products & Variants
-  let productsList: any[] = [];
-  try {
-    const { data, error } = await supabase
-      .from("products")
-      .select(`
-        id,
-        name,
-        base_price,
-        categories (name),
-        product_variants (
-          id,
-          name,
-          sku,
-          price,
-          stock_quantity
-        )
-      `)
-      .order("name", { ascending: true });
-
-    if (!error && data && data.length > 0) {
-      productsList = data;
-    }
-  } catch (err) {
-    console.warn("Could not query products from Supabase, using catalog fallback:", err);
-  }
-
-  // Fallback to CATALOG_PRODUCTS if empty
-  if (productsList.length === 0) {
-    productsList = CATALOG_PRODUCTS.map((p) => ({
-      id: p.id,
-      name: p.name,
-      base_price: p.base_price,
-      categories: { name: p.category_name },
-      product_variants: [
-        {
-          id: `var-${p.id}`,
-          name: "Standard",
-          sku: p.sku,
-          price: p.base_price,
-          stock_quantity: p.stock_quantity,
-        },
-      ],
-    }));
-  }
-
-  // 2. Fetch Recent Stock Movements
-  let movementsList: any[] = [];
-  try {
-    const { data: movementsData } = await supabase
-      .from("stock_movements")
-      .select(`
-        id,
-        movement_type,
-        quantity,
-        unit_cost,
-        supplier,
-        reference_notes,
-        logged_by,
-        created_at,
-        products (name)
-      `)
-      .order("created_at", { ascending: false })
-      .limit(30);
-
-    if (movementsData) {
-      movementsList = movementsData;
-    }
-  } catch (err) {
-    console.warn("Could not query stock_movements:", err);
-  }
+  const productsList = await getProducts();
+  const movementsList = await getStockMovements();
 
   // Metrics computation
   let totalUnits = 0;
@@ -104,14 +34,11 @@ export default async function StockManagementPage() {
   let outOfStockCount = 0;
 
   productsList.forEach((prod) => {
-    const variants = prod.product_variants || [];
-    variants.forEach((v: any) => {
-      const stock = v.stock_quantity ?? 0;
-      totalUnits += stock;
-      totalValuation += stock * (v.price || prod.base_price || 0);
-      if (stock === 0) outOfStockCount++;
-      else if (stock < 3) lowStockCount++;
-    });
+    const stock = prod.stock_quantity ?? 0;
+    totalUnits += stock;
+    totalValuation += stock * (prod.base_price || 0);
+    if (stock === 0) outOfStockCount++;
+    else if (stock < 3) lowStockCount++;
   });
 
   return (
@@ -127,6 +54,19 @@ export default async function StockManagementPage() {
             Track showroom and warehouse inventory, log daily purchases/restocks, and monitor sold assets.
           </p>
         </div>
+
+        <div className="flex items-center gap-3">
+          <Link href="/admin/whatsapp-analytics">
+            <Button variant="outline" className="gap-2">
+              View Analytics & Download PDF
+            </Button>
+          </Link>
+          <Link href="/admin">
+            <Button variant="secondary" className="gap-2">
+              Products Catalog
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -137,7 +77,7 @@ export default async function StockManagementPage() {
             <PackageCheck className="h-4 w-4 text-primary" />
           </div>
           <p className="font-serif text-3xl font-semibold text-foreground mt-2">{totalUnits}</p>
-          <span className="text-xs text-muted-foreground">Across all furniture pieces</span>
+          <span className="text-xs text-muted-foreground">Across all showroom pieces</span>
         </div>
 
         <div className="p-5 bg-card border border-border rounded-xl shadow-sm">
@@ -168,7 +108,7 @@ export default async function StockManagementPage() {
             <AlertTriangle className="h-4 w-4 text-rose-500" />
           </div>
           <p className="font-serif text-3xl font-semibold text-foreground mt-2">{outOfStockCount}</p>
-          <span className="text-xs text-rose-600 dark:text-rose-400 font-medium">Requires immediate restock</span>
+          <span className="text-xs text-rose-600 dark:text-rose-400 font-medium">Requires restock</span>
         </div>
       </div>
 
@@ -194,7 +134,7 @@ export default async function StockManagementPage() {
           >
             <div>
               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1 block">
-                Select Furniture Piece
+                Select Furniture Piece *
               </label>
               <select
                 name="productId"
@@ -203,7 +143,7 @@ export default async function StockManagementPage() {
               >
                 {productsList.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name} (${p.base_price})
+                    {p.name} (${p.base_price}) — Current Stock: {p.stock_quantity}
                   </option>
                 ))}
               </select>
@@ -212,7 +152,7 @@ export default async function StockManagementPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1 block">
-                  Quantity Bought / Added
+                  Quantity Bought / Added *
                 </label>
                 <input
                   name="quantity"
@@ -256,12 +196,12 @@ export default async function StockManagementPage() {
               <textarea
                 name="notes"
                 rows={2}
-                placeholder="e.g. Received morning batch of 5 washed oak 3pc kitchen suites in pristine condition."
+                placeholder="e.g. Received morning batch in pristine condition."
                 className="w-full bg-background border border-border rounded-md px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
 
-            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
+            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold">
               Add to Warehouse Stock (+ Units)
             </Button>
           </form>
@@ -287,7 +227,7 @@ export default async function StockManagementPage() {
           >
             <div>
               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1 block">
-                Select Sold Furniture
+                Select Sold Furniture *
               </label>
               <select
                 name="productId"
@@ -296,7 +236,7 @@ export default async function StockManagementPage() {
               >
                 {productsList.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name} (Stock: {p.product_variants?.[0]?.stock_quantity ?? 0})
+                    {p.name} (Available Stock: {p.stock_quantity})
                   </option>
                 ))}
               </select>
@@ -305,7 +245,7 @@ export default async function StockManagementPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1 block">
-                  Quantity Sold / Deducted
+                  Quantity Sold / Deducted *
                 </label>
                 <input
                   name="quantity"
@@ -328,7 +268,7 @@ export default async function StockManagementPage() {
                   <option value="WhatsApp Order & Delivery">WhatsApp Order & Delivery</option>
                   <option value="Showroom Walk-in (Cash/EcoCash)">Showroom Walk-in (Cash/EcoCash)</option>
                   <option value="Layby Full Settlement Collection">Layby Full Settlement Collection</option>
-                  <option value="Damage / Floor Model Write-off">Damage / Floor Model Write-off</option>
+                  <option value="Floor Model Write-off">Floor Model Write-off</option>
                 </select>
               </div>
             </div>
@@ -348,7 +288,7 @@ export default async function StockManagementPage() {
             <Button
               type="submit"
               variant="outline"
-              className="w-full border-amber-600/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
+              className="w-full border-amber-600/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 font-semibold"
             >
               Deduct from Stock (- Units)
             </Button>
@@ -381,9 +321,8 @@ export default async function StockManagementPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {productsList.map((product) => {
-                const variant = product.product_variants?.[0];
-                const stock = variant?.stock_quantity ?? 0;
-                const price = variant?.price || product.base_price || 0;
+                const stock = product.stock_quantity ?? 0;
+                const price = product.base_price || 0;
                 const value = stock * price;
 
                 return (
@@ -392,7 +331,7 @@ export default async function StockManagementPage() {
                       {product.name}
                     </td>
                     <td className="py-3.5 px-4 text-muted-foreground">
-                      {product.categories?.name || "General"}
+                      {product.category_name || "General"}
                     </td>
                     <td className="py-3.5 px-4 text-foreground font-mono font-medium">
                       ${price.toLocaleString()}
@@ -416,39 +355,37 @@ export default async function StockManagementPage() {
                       ${value.toLocaleString()}
                     </td>
                     <td className="py-3.5 px-6 text-right">
-                      {variant && (
-                        <div className="inline-flex items-center gap-1.5 justify-end">
-                          <form
-                            action={async () => {
-                              "use server";
-                              await quickUpdateStock(variant.id, Math.max(0, stock - 1));
-                            }}
+                      <div className="inline-flex items-center gap-1.5 justify-end">
+                        <form
+                          action={async () => {
+                            "use server";
+                            await quickUpdateStock(product.id, Math.max(0, stock - 1));
+                          }}
+                        >
+                          <button
+                            type="submit"
+                            title="Decrease stock by 1"
+                            className="w-7 h-7 rounded border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition font-bold"
                           >
-                            <button
-                              type="submit"
-                              title="Decrease stock by 1"
-                              className="w-7 h-7 rounded border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition"
-                            >
-                              -
-                            </button>
-                          </form>
-                          <span className="w-8 text-center font-mono font-bold">{stock}</span>
-                          <form
-                            action={async () => {
-                              "use server";
-                              await quickUpdateStock(variant.id, stock + 1);
-                            }}
+                            -
+                          </button>
+                        </form>
+                        <span className="w-8 text-center font-mono font-bold">{stock}</span>
+                        <form
+                          action={async () => {
+                            "use server";
+                            await quickUpdateStock(product.id, stock + 1);
+                          }}
+                        >
+                          <button
+                            type="submit"
+                            title="Increase stock by 1"
+                            className="w-7 h-7 rounded border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition font-bold"
                           >
-                            <button
-                              type="submit"
-                              title="Increase stock by 1"
-                              className="w-7 h-7 rounded border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition"
-                            >
-                              +
-                            </button>
-                          </form>
-                        </div>
-                      )}
+                            +
+                          </button>
+                        </form>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -514,7 +451,7 @@ export default async function StockManagementPage() {
                         )}
                       </td>
                       <td className="py-3.5 px-4 font-medium text-foreground">
-                        {m.products?.name || "Furniture Piece"}
+                        {m.product_name}
                       </td>
                       <td className="py-3.5 px-4 font-mono font-bold">
                         <span className={isRestock ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>

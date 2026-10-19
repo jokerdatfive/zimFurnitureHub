@@ -1,14 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Edit2, Trash2, Check, X, Image as ImageIcon, Palette, ExternalLink, Sparkles } from "lucide-react";
+import { Plus, Edit2, Trash2, Check, X, Image as ImageIcon, Palette, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductModal } from "./product-modal";
 import { deleteProduct, toggleProductStock } from "./actions";
 import Link from "next/link";
+import type { StoredProduct } from "@/lib/db/unified-store";
 
 interface ProductTableClientProps {
-  products: any[];
+  products: StoredProduct[];
   categories: { id: string; name: string }[];
 }
 
@@ -17,7 +18,7 @@ export function ProductTableClient({
   categories,
 }: ProductTableClientProps) {
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<any | null>(null);
+  const [editingProduct, setEditingProduct] = useState<StoredProduct | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleOpenAdd = () => {
@@ -25,7 +26,7 @@ export function ProductTableClient({
     setModalOpen(true);
   };
 
-  const handleOpenEdit = (prod: any) => {
+  const handleOpenEdit = (prod: StoredProduct) => {
     setEditingProduct(prod);
     setModalOpen(true);
   };
@@ -59,7 +60,7 @@ export function ProductTableClient({
 
         <Button onClick={handleOpenAdd} className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2">
           <Plus className="h-4 w-4" />
-          Publish New Product
+          Publish New Furniture
         </Button>
       </div>
 
@@ -80,15 +81,11 @@ export function ProductTableClient({
             </thead>
             <tbody className="divide-y divide-border">
               {products.map((product) => {
-                const variant = product.product_variants?.[0];
-                const stock = variant?.stock_quantity ?? 0;
+                const stock = product.stock_quantity ?? 0;
                 const isSoldOut = stock <= 0;
-                const imageCount = (product.product_images?.length || (variant?.image_url ? 1 : 0));
-                const variantCount = product.product_variants?.length || 1;
-                const thumbnail =
-                  product.product_images?.[0]?.url ||
-                  variant?.image_url ||
-                  "/images/product-sofa.jpg";
+                const imageCount = product.images?.length || 1;
+                const colorCount = product.colors?.length || 1;
+                const thumbnail = product.images?.[0] || "/images/product-sofa.jpg";
 
                 return (
                   <tr key={product.id} className="hover:bg-secondary/10 transition-colors">
@@ -123,7 +120,7 @@ export function ProductTableClient({
 
                     {/* Category */}
                     <td className="px-4 py-4 text-muted-foreground">
-                      {product.categories?.name || "General"}
+                      {product.category_name || "General"}
                     </td>
 
                     {/* Base Price */}
@@ -138,10 +135,10 @@ export function ProductTableClient({
                           <ImageIcon className="w-3 h-3 text-primary" />
                           {imageCount} {imageCount === 1 ? "photo" : "photos"}
                         </span>
-                        {variantCount > 1 && (
+                        {colorCount > 1 && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-medium">
                             <Palette className="w-3 h-3" />
-                            {variantCount} finishes
+                            {colorCount} finishes
                           </span>
                         )}
                       </div>
@@ -149,37 +146,33 @@ export function ProductTableClient({
 
                     {/* Stock Status Toggle */}
                     <td className="px-4 py-4">
-                      {variant ? (
-                        <form
-                          action={async () => {
-                            await toggleProductStock(variant.id, stock);
-                          }}
+                      <form
+                        action={async () => {
+                          await toggleProductStock(product.id, stock);
+                        }}
+                      >
+                        <button
+                          type="submit"
+                          title="Click to toggle stock status"
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                            isSoldOut
+                              ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20"
+                              : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
+                          }`}
                         >
-                          <button
-                            type="submit"
-                            title="Click to toggle stock status"
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                              isSoldOut
-                                ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20"
-                                : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
-                            }`}
-                          >
-                            {isSoldOut ? (
-                              <>
-                                <X className="h-3 w-3" />
-                                <span>Sold Out</span>
-                              </>
-                            ) : (
-                              <>
-                                <Check className="h-3 w-3" />
-                                <span>In Stock ({stock})</span>
-                              </>
-                            )}
-                          </button>
-                        </form>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
+                          {isSoldOut ? (
+                            <>
+                              <X className="h-3 w-3" />
+                              <span>Sold Out</span>
+                            </>
+                          ) : (
+                            <>
+                              <Check className="h-3 w-3" />
+                              <span>In Stock ({stock})</span>
+                            </>
+                          )}
+                        </button>
+                      </form>
                     </td>
 
                     {/* Featured */}
@@ -227,7 +220,7 @@ export function ProductTableClient({
               {products.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
-                    No products found in the catalog. Click &quot;Publish New Product&quot; to add one.
+                    No products found in the catalog. Click &quot;Publish New Furniture&quot; to add one.
                   </td>
                 </tr>
               )}

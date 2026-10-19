@@ -1,0 +1,31 @@
+[
+  {
+    "id": "lay-001",
+    "customer_name": "Tatenda Mutasa",
+    "customer_phone": "+263 77 412 8891",
+    "product_name": "Kombera 3pc Washed Oak Modular Kitchen Suite",
+    "total_price": 380,
+    "deposit_paid": 150,
+    "balance_due": 230,
+    "status": "ACTIVE",
+    "notes": "Agreed 3-month layby terms via WhatsApp. Collecting upon final payment.",
+    "payments": [
+      {
+        "id": "pay-001",
+        "amount": 100,
+        "payment_date": "2026-10-09T06:46:16.137Z",
+        "payment_method": "EcoCash",
+        "reference": "MP261019.001"
+      },
+      {
+        "id": "pay-002",
+        "amount": 50,
+        "payment_date": "2026-10-17T06:46:16.137Z",
+        "payment_method": "EcoCash",
+        "reference": "MP261019.044"
+      }
+    ],
+    "created_at": "2026-10-09T06:46:16.137Z",
+    "updated_at": "2026-10-17T06:46:16.137Z"
+  }
+]

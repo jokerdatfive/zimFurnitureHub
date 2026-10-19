@@ -1,0 +1,38 @@
+[
+  {
+    "id": "mov-001",
+    "product_id": "b1000000-0000-0000-0000-000000000001",
+    "product_name": "Kombera Royal Blue Velvet Bachelor L-Shape Sectional",
+    "movement_type": "PURCHASE_RESTOCK",
+    "quantity": 5,
+    "unit_cost": 160,
+    "supplier": "Bulawayo Workshop Carpentry Hub",
+    "reference_notes": "Received batch of 5 brand new sectionals in plush velvet.",
+    "logged_by": "Store Admin",
+    "created_at": "2026-10-17T06:46:16.135Z"
+  },
+  {
+    "id": "mov-002",
+    "product_id": "b1000000-0000-0000-0000-000000000001",
+    "product_name": "Kombera Royal Blue Velvet Bachelor L-Shape Sectional",
+    "movement_type": "SALE_DEDUCTION",
+    "quantity": -1,
+    "unit_cost": 250,
+    "supplier": "WhatsApp Order & Delivery",
+    "reference_notes": "Sold to customer from Avondale, delivered with receipt #1042.",
+    "logged_by": "Store Admin",
+    "created_at": "2026-10-18T06:46:16.136Z"
+  },
+  {
+    "id": "mov-003",
+    "product_id": "b1000000-0000-0000-0000-000000000003",
+    "product_name": "Kombera 3pc Washed Oak Modular Kitchen Suite",
+    "movement_type": "PURCHASE_RESTOCK",
+    "quantity": 3,
+    "unit_cost": 240,
+    "supplier": "Harare Timber & Joinery Mills",
+    "reference_notes": "Restocked washed oak modular sets.",
+    "logged_by": "Store Admin",
+    "created_at": "2026-10-14T06:46:16.136Z"
+  }
+]

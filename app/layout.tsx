@@ -1,22 +1,10 @@
-import type { Metadata } from 'next'
-import { Cormorant_Garamond, Inter } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
+import type { Metadata } from 'next';
+import { Analytics } from '@vercel/analytics/next';
 import { CartProvider } from "@/lib/cart-context";
 import { Navigation } from "@/components/navigation";
 import { Footer } from "@/components/footer";
 import { ShoppingCart } from "@/components/shopping-cart";
-import './globals.css'
-
-const cormorant = Cormorant_Garamond({ 
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-serif"
-});
-
-const inter = Inter({ 
-  subsets: ["latin"],
-  variable: "--font-sans"
-});
+import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Kombera Kombera Furnitures | Contemporary Organic Living',
@@ -35,15 +23,15 @@ export const metadata: Metadata = {
     ],
     apple: '/branding/04_avatar_profile_luxury_badge.png',
   },
-}
+};
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${cormorant.variable} ${inter.variable} bg-background`}>
+    <html lang="en" className="bg-background">
       <body className="font-sans antialiased">
         <CartProvider>
           <Navigation />
@@ -54,5 +42,5 @@ export default function RootLayout({
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
-  )
+  );
 }

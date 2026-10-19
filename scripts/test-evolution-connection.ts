@@ -15,12 +15,27 @@
  * ==============================================================================
  */
 
-import { config } from 'dotenv';
+import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 
-// Load local environment variables (.env.local or .env)
-config({ path: resolve(process.cwd(), '.env.local') });
-config({ path: resolve(process.cwd(), '.env') });
+// Load local environment variables (.env.local or .env) natively
+function loadEnvFile(file: string) {
+  const p = resolve(process.cwd(), file);
+  if (existsSync(p)) {
+    const lines = readFileSync(p, 'utf8').split('\n');
+    for (const line of lines) {
+      const match = line.match(/^([^#=]+)=(.*)$/);
+      if (match) {
+        const k = match[1].trim();
+        let v = match[2].trim();
+        if (v.startsWith('"') && v.endsWith('"')) v = v.slice(1, -1);
+        process.env[k] = v;
+      }
+    }
+  }
+}
+loadEnvFile('.env.local');
+loadEnvFile('.env');
 
 const colors = {
   reset: '\x1b[0m',

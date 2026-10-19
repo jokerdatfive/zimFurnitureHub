@@ -1,0 +1,42 @@
+[
+  {
+    "id": "lead-001",
+    "name": "Blessing Chiwenga",
+    "phone": "263772891044",
+    "interested_in": "Kombera Royal Blue Velvet Bachelor L-Shape Sectional",
+    "estimated_value": null,
+    "status": "INTERESTED",
+    "notes": "Asked about delivery fees to Borrowdale and velvet color choices.",
+    "is_casual_chat": false,
+    "confidence": 0.95,
+    "needs_review": false,
+    "created_at": "2026-10-18T06:46:16.138Z",
+    "updated_at": "2026-10-18T06:46:16.138Z"
+  },
+  {
+    "id": "lead-002",
+    "name": "Farai Ncube",
+    "phone": "263719402911",
+    "interested_in": "Kombera 3pc Washed Oak Modular Kitchen Suite",
+    "estimated_value": 380,
+    "status": "PROMISED",
+    "notes": "Customer visited showroom, promised to send EcoCash layby deposit on Friday.",
+    "is_casual_chat": false,
+    "confidence": 0.9,
+    "needs_review": false,
+    "created_at": "2026-10-17T06:46:16.138Z",
+    "updated_at": "2026-10-17T06:46:16.138Z"
+  },
+  {
+    "id": "lead-003",
+    "name": "Ruvimbo Marufu",
+    "phone": "263773123890",
+    "status": "CASUAL_CHAT",
+    "notes": "Casual greeting: Good morning",
+    "is_casual_chat": true,
+    "confidence": 1,
+    "needs_review": false,
+    "created_at": "2026-10-16T06:46:16.138Z",
+    "updated_at": "2026-10-16T06:46:16.138Z"
+  }
+]

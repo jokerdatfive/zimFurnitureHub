@@ -34,6 +34,17 @@ export function Navigation() {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border transition-all">
+      {/* Top Showroom & Branch Announcement Strip */}
+      <div className="bg-primary text-primary-foreground text-[11px] py-1.5 px-4 text-center font-medium flex items-center justify-center gap-2 overflow-x-auto whitespace-nowrap">
+        <span>📍 Showroom: 10670 Harare Highglen Road (10 km from Highglen)</span>
+        <span className="opacity-40 hidden sm:inline">•</span>
+        <span className="hidden sm:inline">Branches: Harare & Chiredzi</span>
+        <span className="opacity-40 hidden md:inline">•</span>
+        <a href="https://wa.me/263770000000" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-80 font-mono">
+          WhatsApp: +263 770 000 000
+        </a>
+      </div>
+
       <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 sm:h-20 items-center justify-between gap-4">
           {/* Logo */}

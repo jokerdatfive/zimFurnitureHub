@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { AddToCartButton } from "@/components/add-to-cart-button";
 import { getFallbackProductBySlug } from "@/lib/catalog-data";
 import { ProductGallery } from "@/components/product-gallery";
+import { WhatsAppInquiryBox } from "@/components/whatsapp-inquiry-box";
 import { MessageSquare, ShieldCheck, Truck, Clock } from "lucide-react";
 
 export default async function ProductDetailPage({
@@ -188,16 +189,13 @@ export default async function ProductDetailPage({
                 }}
               />
 
-              {/* Instant WhatsApp Order / Layby Button */}
-              <a
-                href={`https://wa.me/${whatsappNumber}?text=${whatsappOrderMessage}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm transition shadow-sm"
-              >
-                <MessageSquare className="w-4 h-4" />
-                Inquire or Order via WhatsApp (Cash / Layby)
-              </a>
+              {/* Tailored WhatsApp Prompt Inquiry Component */}
+              <WhatsAppInquiryBox
+                productName={product.name}
+                price={Number(displayPrice)}
+                inStock={inStock}
+                whatsappNumber={whatsappNumber}
+              />
 
               {/* Trust badges */}
               <div className="grid grid-cols-3 gap-3 pt-4 border-t border-border text-center text-xs text-muted-foreground">

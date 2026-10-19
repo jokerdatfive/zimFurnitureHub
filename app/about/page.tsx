@@ -92,6 +92,50 @@ export default function OurStory() {
           </div>
         </div>
       </section>
+
+      {/* Showroom Locations Section */}
+      <section className="py-20 bg-background border-t border-border">
+        <div className="max-w-5xl mx-auto px-6 lg:px-8 text-center">
+          <h2 className="font-serif text-3xl font-semibold text-foreground mb-3">Visit Our Showrooms</h2>
+          <p className="text-sm text-muted-foreground max-w-xl mx-auto mb-10">
+            Experience our handcrafted furniture pieces in person, inspect wood finishes, and discuss custom bespoke orders.
+          </p>
+
+          <div className="grid md:grid-cols-2 gap-6 text-left">
+            <div className="p-6 rounded-2xl bg-secondary/30 border border-border">
+              <span className="text-xs font-bold uppercase tracking-wider text-primary block mb-2">Main Showroom & Workshop</span>
+              <h3 className="font-serif text-xl font-bold text-foreground">Harare Highglen Hub</h3>
+              <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                10670 Harare Highglen Road<br />
+                (10 kilometres from Highglen)<br />
+                Harare, Zimbabwe
+              </p>
+              <div className="mt-4 pt-4 border-t border-border flex items-center justify-between text-xs font-semibold">
+                <span className="text-emerald-600 dark:text-emerald-400">Open Mon – Sat (8am – 5pm)</span>
+                <a href="https://wa.me/263770000000" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                  Chat via WhatsApp →
+                </a>
+              </div>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-secondary/30 border border-border">
+              <span className="text-xs font-bold uppercase tracking-wider text-primary block mb-2">Regional Branch</span>
+              <h3 className="font-serif text-xl font-bold text-foreground">Chiredzi Branch</h3>
+              <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                Chiredzi Regional Showroom & Depot<br />
+                Serving Lowveld & Masvingo Province<br />
+                Zimbabwe
+              </p>
+              <div className="mt-4 pt-4 border-t border-border flex items-center justify-between text-xs font-semibold">
+                <span className="text-emerald-600 dark:text-emerald-400">Open Mon – Sat (8am – 5pm)</span>
+                <a href="https://wa.me/263770000000" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                  Inquire Branch Stock →
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

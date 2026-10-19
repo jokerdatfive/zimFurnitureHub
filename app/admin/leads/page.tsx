@@ -1,119 +1,165 @@
-import { createClient } from "@/utils/supabase/server";
-import { Users, MessageSquare, AlertCircle, CheckCircle, Clock, DollarSign, Filter, Sparkles } from "lucide-react";
+import { Users, MessageSquare, AlertCircle, CheckCircle, Clock, DollarSign, Filter, Sparkles, MessageCircle, ArrowRight, ShoppingCart, Ban, ShieldCheck } from "lucide-react";
 import Link from "next/link";
-import { updateLeadStatus, markLeadReviewed, triggerAiExtraction } from "./actions";
+import { updateLeadStatus, triggerAiExtraction } from "./actions";
+import { getLeads, getProducts } from "@/lib/db/unified-store";
+import { Button } from "@/components/ui/button";
+
+export const dynamic = "force-dynamic";
 
 interface LeadsPageProps {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; view?: string }>;
 }
 
 export default async function LeadsPage({ searchParams }: LeadsPageProps) {
-  const { status } = await searchParams;
-  const supabase = await createClient();
+  const { status, view } = await searchParams;
+  const showCasual = view === "all" || view === "casual";
 
-  let query = supabase
-    .from("leads")
-    .select(`
-      id,
-      name,
-      phone,
-      interested_in,
-      estimated_value,
-      status,
-      notes,
-      confidence,
-      needs_review,
-      created_at,
-      contact:whatsapp_contacts(id, wa_id, bsuid, profile_name),
-      conversation:whatsapp_conversations(id)
-    `)
-    .order("created_at", { ascending: false });
+  const allLeads = await getLeads(true);
+  const products = await getProducts();
+
+  // Filter based on view and status
+  let filtered = showCasual
+    ? view === "casual"
+      ? allLeads.filter((l) => l.is_casual_chat)
+      : allLeads
+    : allLeads.filter((l) => !l.is_casual_chat);
 
   if (status && status !== "ALL") {
-    query = query.eq("status", status);
+    filtered = filtered.filter((l) => l.status === status);
   }
 
-  const { data: leadsData } = await query;
-  const leads = (leadsData || []) as any[];
-
-  // Compute metrics
-  const totalLeads = leads.length;
-  const needsReviewCount = leads.filter((l) => l.needs_review).length;
-  const totalValue = leads.reduce((sum, l) => sum + (Number(l.estimated_value) || 0), 0);
+  // Real sales leads vs casual conversations counts
+  const realLeadsCount = allLeads.filter((l) => !l.is_casual_chat).length;
+  const casualChatCount = allLeads.filter((l) => l.is_casual_chat).length;
+  const hotLeadsCount = allLeads.filter((l) => !l.is_casual_chat && (l.status === "INTERESTED" || l.status === "PROMISED" || l.status === "LAYBY")).length;
+  const closedCount = allLeads.filter((l) => l.status === "CONVERTED").length;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-12">
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border">
         <div>
           <h1 className="font-serif text-3xl font-semibold flex items-center gap-3">
             <Users className="h-7 w-7 text-primary" />
-            WhatsApp Leads & Inquiries
+            WhatsApp Sales Leads & Inquiries
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Potential buyers captured from WhatsApp chats, product inquiries, and showroom interest.
+            Genuine furniture prospects qualified from WhatsApp chats. Casual chatter and greetings are automatically segregated.
           </p>
         </div>
 
-        <form
-          action={async () => {
-            "use server";
-            await triggerAiExtraction();
-          }}
-        >
-          <button
-            type="submit"
-            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-md shadow-sm transition-colors"
+        <div className="flex items-center gap-2">
+          <form
+            action={async () => {
+              "use server";
+              await triggerAiExtraction();
+            }}
           >
-            <Sparkles className="h-3.5 w-3.5" />
-            Extract Sales Insights with AI
-          </button>
-        </form>
+            <button
+              type="submit"
+              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg shadow-xs transition-colors"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Scan WhatsApp for New Leads
+            </button>
+          </form>
+        </div>
       </div>
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-5 bg-card border border-border rounded-xl shadow-sm">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="p-4 bg-card border border-border rounded-xl shadow-xs">
           <div className="flex items-center justify-between text-muted-foreground text-xs uppercase font-medium">
-            <span>Total Leads</span>
-            <Users className="h-4 w-4" />
+            <span>Active Furniture Leads</span>
+            <Users className="h-4 w-4 text-primary" />
           </div>
-          <p className="font-serif text-3xl font-semibold text-foreground mt-2">{totalLeads}</p>
-          <span className="text-xs text-muted-foreground">Captured from WhatsApp</span>
+          <p className="font-serif text-2xl font-bold text-foreground mt-2">{realLeadsCount}</p>
+          <span className="text-[11px] text-muted-foreground">Genuine buyers inquiring</span>
         </div>
 
-        <div className="p-5 bg-card border border-border rounded-xl shadow-sm">
+        <div className="p-4 bg-card border border-border rounded-xl shadow-xs">
           <div className="flex items-center justify-between text-muted-foreground text-xs uppercase font-medium">
-            <span>Needs Review</span>
+            <span>In Pipeline / Hot</span>
             <AlertCircle className="h-4 w-4 text-amber-500" />
           </div>
-          <p className="font-serif text-3xl font-semibold text-foreground mt-2">{needsReviewCount}</p>
-          <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">AI extraction flags</span>
+          <p className="font-serif text-2xl font-bold text-foreground mt-2">{hotLeadsCount}</p>
+          <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">Interested & Promised</span>
         </div>
 
-        <div className="p-5 bg-card border border-border rounded-xl shadow-sm">
+        <div className="p-4 bg-card border border-border rounded-xl shadow-xs">
           <div className="flex items-center justify-between text-muted-foreground text-xs uppercase font-medium">
-            <span>Pipeline Value</span>
-            <DollarSign className="h-4 w-4 text-emerald-600" />
+            <span>Sales Converted</span>
+            <CheckCircle className="h-4 w-4 text-emerald-600" />
           </div>
-          <p className="font-serif text-3xl font-semibold text-foreground mt-2">
-            ${totalValue.toLocaleString()}
-          </p>
-          <span className="text-xs text-muted-foreground">Estimated interest value</span>
+          <p className="font-serif text-2xl font-bold text-foreground mt-2">{closedCount}</p>
+          <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">Delivered / Completed</span>
+        </div>
+
+        <div className="p-4 bg-card border border-border rounded-xl shadow-xs">
+          <div className="flex items-center justify-between text-muted-foreground text-xs uppercase font-medium">
+            <span>Casual Chat Excluded</span>
+            <Ban className="h-4 w-4 text-slate-400" />
+          </div>
+          <p className="font-serif text-2xl font-bold text-muted-foreground mt-2">{casualChatCount}</p>
+          <span className="text-[11px] text-muted-foreground">Greetings & non-commercial</span>
+        </div>
+      </div>
+
+      {/* View Switcher: Active Leads vs Casual Chat */}
+      <div className="flex items-center justify-between flex-wrap gap-4 p-3 bg-secondary/40 border border-border rounded-xl">
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/leads"
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              !view || view === "active"
+                ? "bg-primary text-primary-foreground shadow-xs"
+                : "bg-secondary text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Active Furniture Leads ({realLeadsCount})
+          </Link>
+          <Link
+            href="/admin/leads?view=casual"
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              view === "casual"
+                ? "bg-slate-700 text-white shadow-xs"
+                : "bg-secondary text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Casual / Non-Leads ({casualChatCount})
+          </Link>
+          <Link
+            href="/admin/leads?view=all"
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+              view === "all"
+                ? "bg-secondary-foreground text-secondary shadow-xs"
+                : "bg-secondary text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            All Messages ({allLeads.length})
+          </Link>
+        </div>
+
+        <div className="text-xs text-muted-foreground">
+          Tip: Accurate pricing is only attached if explicitly agreed or requested.
         </div>
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 text-sm">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
         {["ALL", "NEW", "INTERESTED", "PROMISED", "LAYBY", "CONVERTED", "LOST"].map((tab) => {
           const isActive = (!status && tab === "ALL") || status === tab;
+          const href = tab === "ALL"
+            ? `/admin/leads${view ? `?view=${view}` : ""}`
+            : `/admin/leads?status=${tab}${view ? `&view=${view}` : ""}`;
+
           return (
             <Link
               key={tab}
-              href={`/admin/leads${tab === "ALL" ? "" : `?status=${tab}`}`}
-              className={`px-3 py-1.5 rounded-md font-medium text-xs whitespace-nowrap transition-colors ${
+              href={href}
+              className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors ${
                 isActive
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-primary text-primary-foreground shadow-xs"
                   : "bg-secondary text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -124,54 +170,69 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
       </div>
 
       {/* Leads Table */}
-      <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+      <div className="bg-card border border-border rounded-xl overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-sm">
-            <thead className="bg-secondary/40 text-xs uppercase text-muted-foreground font-semibold">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead className="bg-secondary/40 uppercase text-muted-foreground font-semibold border-b border-border">
               <tr>
-                <th className="px-6 py-4">Lead / Customer</th>
-                <th className="px-6 py-4">Interested In</th>
-                <th className="px-6 py-4">Value</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Notes</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                <th className="px-6 py-3.5">Customer / Contact</th>
+                <th className="px-4 py-3.5">Furniture Interest</th>
+                <th className="px-4 py-3.5">Customer Price / Budget</th>
+                <th className="px-4 py-3.5">Lead Status</th>
+                <th className="px-4 py-3.5">Conversation Notes</th>
+                <th className="px-6 py-3.5 text-right">Instant Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {leads.length === 0 ? (
+              {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
-                    No leads found matching current filter.
+                    <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                    <p className="font-medium text-sm">No leads found in this view.</p>
+                    <p className="text-xs mt-0.5">WhatsApp inquiries will automatically qualify and appear here.</p>
                   </td>
                 </tr>
               ) : (
-                leads.map((lead) => {
-                  const convId = lead.conversation?.id || lead.conversation_id;
+                filtered.map((lead) => {
+                  const cleanPhone = lead.phone ? lead.phone.replace(/\D/g, "") : "";
 
                   return (
                     <tr key={lead.id} className="hover:bg-secondary/10 transition-colors">
-                      <td className="px-6 py-4 font-medium text-foreground">
+                      <td className="px-6 py-3.5 font-medium text-foreground">
                         <div>
-                          <span>{lead.name || "WhatsApp Client"}</span>
+                          <span className="font-bold text-sm">{lead.name || "WhatsApp Client"}</span>
                           <span className="block text-xs font-mono text-muted-foreground mt-0.5">
-                            {lead.phone || lead.contact?.wa_id || "N/A"}
+                            +{cleanPhone || lead.phone || "No phone"}
                           </span>
                         </div>
                       </td>
 
-                      <td className="px-6 py-4 text-muted-foreground">
-                        {lead.interested_in || "General Inquiry"}
+                      <td className="px-4 py-3.5">
+                        {lead.interested_in ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                            🛋️ {lead.interested_in}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground italic">General / Casual Greeting</span>
+                        )}
                       </td>
 
-                      <td className="px-6 py-4 font-medium text-foreground">
-                        {lead.estimated_value ? `$${Number(lead.estimated_value).toLocaleString()}` : "—"}
+                      {/* NO FAKE PRICES: ONLY real quote or explicit budget */}
+                      <td className="px-4 py-3.5 font-mono">
+                        {lead.estimated_value ? (
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                            ${lead.estimated_value.toLocaleString()}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </td>
 
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3.5">
                         <form
                           action={async (formData) => {
                             "use server";
-                            const newStatus = formData.get("status") as string;
+                            const newStatus = formData.get("status") as any;
                             await updateLeadStatus(lead.id, newStatus);
                           }}
                         >
@@ -179,49 +240,68 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
                             name="status"
                             defaultValue={lead.status}
                             onChange={(e) => e.target.form?.requestSubmit()}
-                            className="text-xs bg-secondary/80 border border-border rounded px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+                            className="text-xs bg-secondary/80 border border-border rounded-lg px-2.5 py-1 font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
                           >
                             <option value="NEW">NEW</option>
                             <option value="INTERESTED">INTERESTED</option>
                             <option value="PROMISED">PROMISED</option>
-                            <option value="LAYBY">LAYBY</option>
-                            <option value="CONVERTED">CONVERTED</option>
-                            <option value="LOST">LOST</option>
+                            <option value="LAYBY">LAYBY PLAN</option>
+                            <option value="CONVERTED">CONVERTED (SOLD)</option>
+                            <option value="LOST">LOST / JUNK</option>
+                            <option value="CASUAL_CHAT">CASUAL CHAT</option>
                           </select>
                         </form>
                       </td>
 
-                      <td className="px-6 py-4 text-xs text-muted-foreground max-w-xs truncate">
-                        {lead.notes || "—"}
+                      <td className="px-4 py-3.5 text-xs text-muted-foreground max-w-xs truncate">
+                        {lead.notes || "Inquired via WhatsApp"}
                       </td>
 
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {convId && (
-                            <Link
-                              href={`/admin/messages?conversationId=${convId}`}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20 transition-colors"
+                      <td className="px-6 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {cleanPhone && (
+                            <a
+                              href={`https://wa.me/${cleanPhone}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition"
+                              title="Chat directly on WhatsApp"
                             >
-                              <MessageSquare className="h-3.5 w-3.5" />
-                              Chat
-                            </Link>
+                              <MessageCircle className="h-3 w-3" />
+                              WhatsApp
+                            </a>
                           )}
-                          {lead.needs_review && (
-                            <form
-                              action={async () => {
-                                "use server";
-                                await markLeadReviewed(lead.id);
-                              }}
+
+                          <form
+                            action={async () => {
+                              "use server";
+                              await updateLeadStatus(lead.id, "LAYBY", "Customer requested Layby Terms");
+                            }}
+                          >
+                            <button
+                              type="submit"
+                              title="Mark as Layby prospect"
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-lg bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 border border-purple-500/20 transition"
                             >
-                              <button
-                                type="submit"
-                                title="Mark reviewed"
-                                className="inline-flex items-center px-2 py-1 text-xs text-amber-600 bg-amber-500/10 hover:bg-amber-500/20 rounded font-medium transition-colors"
-                              >
-                                Review
-                              </button>
-                            </form>
-                          )}
+                              Layby
+                            </button>
+                          </form>
+
+                          <form
+                            action={async () => {
+                              "use server";
+                              await updateLeadStatus(lead.id, "CONVERTED", "Furniture sold and delivered");
+                            }}
+                          >
+                            <button
+                              type="submit"
+                              title="Mark sale completed"
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 border border-emerald-500/20 transition"
+                            >
+                              <ShoppingCart className="h-3 w-3" />
+                              Sold
+                            </button>
+                          </form>
                         </div>
                       </td>
                     </tr>

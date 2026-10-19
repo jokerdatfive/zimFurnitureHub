@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from "./parser";
+import { CATALOG_PRODUCTS } from "@/lib/catalog-data";
 
 export interface ExtractionResult {
   leadsUpdated: number;
@@ -11,9 +12,10 @@ export interface ExtractionResult {
  * Heuristic & AI message extractor for WhatsApp conversations.
  * Detects:
  * - Products interested in (matched against catalog)
- * - Payment promises & dates (e.g., "paying on Friday", "sending $100 via EcoCash")
- * - Showroom visit promises (e.g., "coming tomorrow at 2pm", "visiting showroom")
- * - Layby agreements & deposits
+ * - Payment promises & dates (only when explicit)
+ * - Layby agreements & deposits (only when explicit)
+ * - EXCLUDES casual talking / non-furniture chat
+ * - NEVER puts fake budgets or prices
  */
 export async function extractSalesInsights(conversationId?: string): Promise<ExtractionResult> {
   const supabase = getSupabaseAdmin();
@@ -45,9 +47,7 @@ export async function extractSalesInsights(conversationId?: string): Promise<Ext
       return result;
     }
 
-    // 2. Fetch catalog products for fuzzy matching
-    const { data: products } = await supabase.from("products").select("id, name, base_price");
-    const productList = products || [];
+    const productList = CATALOG_PRODUCTS;
 
     for (const conv of convData as any[]) {
       const messages = (conv.messages || []).sort(
@@ -61,8 +61,16 @@ export async function extractSalesInsights(conversationId?: string): Promise<Ext
         .map((m: any) => m.body)
         .join(" \n ");
 
-      const allChatText = messages.map((m: any) => `${m.sender_type}: ${m.body}`).join("\n");
       const lowerText = customerText.toLowerCase();
+
+      // Check if this is only casual conversation with no furniture intent
+      const hasFurnitureIntent = /kitchen|sofa|couch|wardrobe|bed|dining|furniture|table|chair|suite|dresser|mattress|headboard|oak|wood|catalog|price|cost|how\s*much|stock/i.test(lowerText);
+      const isPureGreeting = /^(hi|hello|hey|mhoro|maswera|good\s*(morning|afternoon|evening)|how\s*are\s*you|ok|sharp)[!.,\s]*$/i.test(customerText.trim());
+
+      if (!hasFurnitureIntent || isPureGreeting) {
+        // Do NOT create or update as a sales lead
+        continue;
+      }
 
       // Check if lead already exists
       const { data: existingLead } = await supabase
@@ -71,7 +79,7 @@ export async function extractSalesInsights(conversationId?: string): Promise<Ext
         .eq("contact_id", conv.contact_id)
         .maybeSingle();
 
-      // A. Match Furniture Products
+      // Match Furniture Products
       let matchedProduct = null;
       for (const prod of productList) {
         const prodWords = prod.name.toLowerCase().split(" ").filter((w: string) => w.length > 3);
@@ -82,7 +90,6 @@ export async function extractSalesInsights(conversationId?: string): Promise<Ext
         }
       }
 
-      // Check generic furniture keywords if no exact product match
       let genericInterest = "";
       if (!matchedProduct) {
         if (lowerText.includes("sofa") || lowerText.includes("couch") || lowerText.includes("sectional")) {
@@ -95,15 +102,21 @@ export async function extractSalesInsights(conversationId?: string): Promise<Ext
       }
 
       const interestedIn = matchedProduct ? matchedProduct.name : genericInterest;
-      const estimatedValue = matchedProduct ? matchedProduct.base_price : null;
 
-      // Update or create lead with extracted product interest
+      // STRICT: ONLY record estimated_value if the customer explicitly asked about price or agreed on a quote
+      // Do NOT invent fake prices
+      const hasPriceInquiry = /price|cost|how\s*much|quot|pay/i.test(lowerText);
+      const explicitPriceMatch = lowerText.match(/(?:budget|have|quoted|price|pay)\s*(?:is|of)?\s*(?:\$|usd)?\s*(\d{2,4})/i);
+      const estimatedValue = explicitPriceMatch ? parseFloat(explicitPriceMatch[1]) : (hasPriceInquiry && matchedProduct ? matchedProduct.base_price : null);
+
       if (interestedIn) {
         const leadUpdate: any = {
           interested_in: interestedIn,
           updated_at: new Date().toISOString(),
         };
-        if (estimatedValue) leadUpdate.estimated_value = estimatedValue;
+        if (estimatedValue !== null) {
+          leadUpdate.estimated_value = estimatedValue;
+        }
 
         if (existingLead) {
           await supabase.from("leads").update(leadUpdate).eq("id", existingLead.id);
@@ -121,13 +134,12 @@ export async function extractSalesInsights(conversationId?: string): Promise<Ext
         }
       }
 
-      // B. Detect Payment Promises (e.g. "paying $...", "deposit on Friday", "transfer")
-      const paymentPromiseRegex = /(?:pay|deposit|sending|transfer|send)\s*(?:\$|usd)?\s*(\d{2,4})/i;
+      // Detect Payment Promises (only when explicitly stated)
+      const paymentPromiseRegex = /(?:will\s*pay|promis.*pay|sending|transfer)\s*(?:\$|usd)?\s*(\d{2,4})/i;
       const paymentMatch = customerText.match(paymentPromiseRegex);
 
       if (paymentMatch) {
         const amount = parseFloat(paymentMatch[1]);
-        // Dedupe check
         const { data: existingPromise } = await supabase
           .from("promises")
           .select("id")
@@ -136,7 +148,6 @@ export async function extractSalesInsights(conversationId?: string): Promise<Ext
           .maybeSingle();
 
         if (!existingPromise) {
-          // Estimate promised date (e.g. 3 days from now)
           const targetDate = new Date();
           targetDate.setDate(targetDate.getDate() + 3);
 
@@ -145,53 +156,18 @@ export async function extractSalesInsights(conversationId?: string): Promise<Ext
             promise_type: "PAYMENT",
             promised_amount: amount,
             promised_date: targetDate.toISOString().split("T")[0],
-            notes: `Extracted from chat: "${paymentMatch[0]}"`,
+            notes: `Customer stated in chat: "${paymentMatch[0]}"`,
             confidence: 0.9,
-            needs_review: true, // Needs review flag so client verifies
-            status: "PENDING",
-          });
-          result.promisesExtracted++;
-        }
-      }
-
-      // C. Detect Showroom Visit Promises (e.g. "coming tomorrow", "visiting showroom", "coming at")
-      if (lowerText.includes("coming tomorrow") || lowerText.includes("visiting") || lowerText.includes("come to the shop") || lowerText.includes("see you on")) {
-        const visitDate = new Date();
-        visitDate.setDate(visitDate.getDate() + 1);
-
-        const { data: existingVisit } = await supabase
-          .from("promises")
-          .select("id")
-          .eq("contact_id", conv.contact_id)
-          .eq("promise_type", "VISIT")
-          .eq("status", "PENDING")
-          .maybeSingle();
-
-        if (!existingVisit) {
-          await supabase.from("promises").insert({
-            contact_id: conv.contact_id,
-            promise_type: "VISIT",
-            promised_date: visitDate.toISOString().split("T")[0],
-            notes: "Customer mentioned visiting the showroom in chat.",
-            confidence: 0.85,
             needs_review: true,
-            status: "PENDING",
           });
           result.promisesExtracted++;
-        }
-      }
-
-      // D. Detect Layby Interest / Down payment
-      if (lowerText.includes("layby") || lowerText.includes("lay-by") || lowerText.includes("installments")) {
-        if (existingLead && existingLead.status !== "LAYBY") {
-          await supabase.from("leads").update({ status: "LAYBY" }).eq("id", existingLead.id);
         }
       }
     }
 
     return result;
   } catch (err: any) {
-    result.errors.push(`Extractor exception: ${err.message}`);
+    result.errors.push(err.message);
     return result;
   }
 }

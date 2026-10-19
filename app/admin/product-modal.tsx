@@ -9,12 +9,13 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { addProduct, updateProduct } from "./actions";
-import { Image as ImageIcon, Plus, Palette, Sparkles, DollarSign, Package } from "lucide-react";
+import { Image as ImageIcon, Plus, Palette, Sparkles, DollarSign, Package, Trash2, UploadCloud } from "lucide-react";
+import type { StoredProduct } from "@/lib/db/unified-store";
 
 interface ProductModalProps {
   isOpen: boolean;
   onClose: () => void;
-  product?: any | null; // If null, "Add Product" mode. If provided, "Edit Product" mode.
+  product?: StoredProduct | any | null;
   categories: { id: string; name: string }[];
 }
 
@@ -32,10 +33,12 @@ export function ProductModal({
   const [stock, setStock] = useState("10");
   const [description, setDescription] = useState("");
   const [isFeatured, setIsFeatured] = useState(false);
-  const [imagesText, setImagesText] = useState("");
+  const [imagesList, setImagesList] = useState<string[]>([]);
+  const [newImageUrl, setNewImageUrl] = useState("");
   const [colorsText, setColorsText] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
   // Pre-fill fields whenever the product changes or modal opens
   useEffect(() => {
@@ -43,26 +46,30 @@ export function ProductModal({
       setName(product.name || "");
       setCategoryId(product.category_id || categories[0]?.id || "");
       setPrice(product.base_price?.toString() || "");
-      
-      const variant = product.product_variants?.[0];
-      setStock(variant?.stock_quantity?.toString() || "10");
+      setStock((product.stock_quantity ?? 10).toString());
       setDescription(product.description || "");
       setIsFeatured(Boolean(product.is_featured));
 
       // Extract existing images
       const existingImages: string[] = [];
-      if (product.product_images && product.product_images.length > 0) {
+      if (Array.isArray(product.images) && product.images.length > 0) {
+        existingImages.push(...product.images);
+      } else if (product.product_images && product.product_images.length > 0) {
         product.product_images.forEach((img: any) => existingImages.push(img.url));
-      } else if (variant?.image_url) {
-        existingImages.push(variant.image_url);
+      } else if (product.image_url) {
+        existingImages.push(product.image_url);
       }
-      setImagesText(existingImages.join("\n"));
+      setImagesList(existingImages.length > 0 ? existingImages : ["/images/product-sofa.jpg"]);
 
-      // Extract existing colors / variants
-      const existingColors = (product.product_variants || [])
-        .map((v: any) => v.name)
-        .filter((n: string) => n && n !== "Standard");
-      setColorsText(existingColors.join(", "));
+      // Extract existing colors
+      if (Array.isArray(product.colors)) {
+        setColorsText(product.colors.join(", "));
+      } else {
+        const variantColors = (product.product_variants || [])
+          .map((v: any) => v.name)
+          .filter((n: string) => n && n !== "Standard");
+        setColorsText(variantColors.join(", "));
+      }
     } else {
       setName("");
       setCategoryId(categories[0]?.id || "");
@@ -70,22 +77,45 @@ export function ProductModal({
       setStock("10");
       setDescription("");
       setIsFeatured(false);
-      setImagesText("/images/product-sofa.jpg");
+      setImagesList(["/images/product-sofa.jpg"]);
       setColorsText("");
     }
     setErrorMsg("");
+    setSuccessMsg("");
+    setNewImageUrl("");
   }, [product, isOpen, categories]);
 
-  // Live image previews
-  const previewImages = imagesText
-    .split(/[\n,]/)
-    .map((url) => url.trim())
-    .filter((url) => url.length > 0 && (url.startsWith("http") || url.startsWith("/")));
+  const handleAddImage = () => {
+    if (!newImageUrl.trim()) return;
+    setImagesList((prev) => [...prev, newImageUrl.trim()]);
+    setNewImageUrl("");
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setImagesList((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    // Convert file to local preview URL or data URL
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setImagesList((prev) => [...prev, event.target!.result as string]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setErrorMsg("");
+    setSuccessMsg("");
 
     const formData = new FormData();
     if (isEditing && product) {
@@ -96,7 +126,7 @@ export function ProductModal({
     formData.set("price", price);
     formData.set("stock", stock);
     formData.set("description", description);
-    formData.set("images", imagesText);
+    formData.set("images", imagesList.join("\n"));
     formData.set("colors", colorsText);
     if (isFeatured) formData.set("isFeatured", "true");
 
@@ -105,7 +135,10 @@ export function ProductModal({
       if (res?.error) {
         setErrorMsg(res.error);
       } else {
-        onClose();
+        setSuccessMsg(isEditing ? "Product updated successfully!" : "Product published successfully!");
+        setTimeout(() => {
+          onClose();
+        }, 600);
       }
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to save product.");
@@ -133,14 +166,20 @@ export function ProductModal({
           </DialogTitle>
           <p className="text-xs text-muted-foreground mt-1">
             {isEditing
-              ? "Update prices, add or replace pictures, manage colors, and set category."
-              : "Create a new showroom piece with multiple pictures, color finishes, and stock level."}
+              ? "Update stock, change prices, add showroom pictures, manage finishes, and set category."
+              : "Create a new showroom piece with multiple pictures, color finishes, and live inventory level."}
           </p>
         </DialogHeader>
 
         {errorMsg && (
           <div className="p-3 bg-destructive/10 border border-destructive/20 text-destructive text-xs rounded-md">
             {errorMsg}
+          </div>
+        )}
+
+        {successMsg && (
+          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs rounded-md">
+            {successMsg}
           </div>
         )}
 
@@ -230,54 +269,91 @@ export function ProductModal({
             />
           </div>
 
-          {/* Multiple Pictures / Gallery */}
-          <div className="space-y-2">
+          {/* Multiple Pictures & Image Upload Section */}
+          <div className="space-y-3 p-4 bg-secondary/30 border border-border rounded-xl">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <ImageIcon className="h-4 w-4 text-primary" />
-                Product Pictures (Multiple URLs, one per line)
+                Product Pictures ({imagesList.length} pictures)
               </label>
               <span className="text-[11px] text-muted-foreground">
-                {previewImages.length} {previewImages.length === 1 ? "picture" : "pictures"} detected
+                First image is main showroom hero picture
               </span>
             </div>
-            <textarea
-              rows={3}
-              value={imagesText}
-              onChange={(e) => setImagesText(e.target.value)}
-              placeholder={"/images/products/kitchen-suite-front.jpg\n/images/products/kitchen-suite-side.jpg\nhttps://example.com/drawer-detail.jpg"}
-              className="w-full font-mono text-xs bg-background border border-border rounded-md p-3 focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed"
-            />
-            <p className="text-[11px] text-muted-foreground">
-              Tip: The first picture will be the primary hero image. Add more picture URLs on new lines so buyers can see full showroom angles.
-            </p>
 
-            {/* Live Thumbnails Preview Strip */}
-            {previewImages.length > 0 && (
-              <div className="pt-2">
-                <span className="text-[11px] font-medium text-muted-foreground block mb-2">Live Picture Previews:</span>
-                <div className="flex items-center gap-3 overflow-x-auto pb-2">
-                  {previewImages.map((url, i) => (
-                    <div
-                      key={i}
-                      className="relative w-16 h-16 rounded-md overflow-hidden border border-border bg-muted shrink-0 group"
-                    >
-                      <img
-                        src={url}
-                        alt={`Preview ${i + 1}`}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = "/images/product-sofa.jpg";
-                        }}
-                      />
-                      <span className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[9px] text-center font-mono py-0.5">
-                        #{i + 1}
-                      </span>
+            {/* Live Picture Preview Strip with Remove Buttons */}
+            {imagesList.length > 0 && (
+              <div className="flex items-center gap-3 overflow-x-auto py-2 no-scrollbar">
+                {imagesList.map((url, i) => (
+                  <div
+                    key={i}
+                    className="relative w-20 h-20 rounded-lg overflow-hidden border-2 border-border bg-muted shrink-0 group shadow-xs"
+                  >
+                    <img
+                      src={url}
+                      alt={`Picture ${i + 1}`}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "/images/product-sofa.jpg";
+                      }}
+                    />
+                    <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage(i)}
+                        className="w-5 h-5 bg-rose-600 text-white rounded-full flex items-center justify-center text-xs shadow hover:bg-rose-700"
+                        title="Remove image"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
                     </div>
-                  ))}
-                </div>
+                    <span className="absolute bottom-0 inset-x-0 bg-black/70 text-white text-[9px] text-center font-mono py-0.5">
+                      {i === 0 ? "★ Hero" : `#${i + 1}`}
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
+
+            {/* Add Image Controls: URL and File Upload */}
+            <div className="flex flex-col sm:flex-row gap-2 pt-1">
+              <div className="flex-1 flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Paste picture URL (e.g. /images/products/sofa.jpg or https://...)"
+                  value={newImageUrl}
+                  onChange={(e) => setNewImageUrl(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddImage();
+                    }
+                  }}
+                  className="flex-1 bg-background border border-border rounded-md px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleAddImage}
+                  className="text-xs whitespace-nowrap"
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Add Picture
+                </Button>
+              </div>
+
+              <label className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-md text-xs cursor-pointer border border-border shrink-0">
+                <UploadCloud className="w-3.5 h-3.5" />
+                <span>Upload From Device</span>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
           </div>
 
           {/* Colors / Material Finishes */}
@@ -317,7 +393,7 @@ export function ProductModal({
               Cancel
             </Button>
             <Button type="submit" disabled={loading} className="bg-primary hover:bg-primary/90 text-primary-foreground min-w-[140px]">
-              {loading ? "Saving..." : isEditing ? "Save Changes" : "Publish to Website"}
+              {loading ? "Saving..." : isEditing ? "Save Changes" : "Publish to Showroom"}
             </Button>
           </div>
         </form>

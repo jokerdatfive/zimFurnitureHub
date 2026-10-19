@@ -52,24 +52,31 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Contact */}
+          {/* Contact & Showroom Locations */}
           <div>
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Contact Us</h3>
-            <ul className="mt-4 space-y-4">
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Showrooms & Branches</h3>
+            <ul className="mt-4 space-y-3.5">
               <li className="flex items-start gap-3">
-                <MapPin className="h-5 w-5 text-muted-foreground shrink-0" />
-                <span className="text-sm text-muted-foreground">
-                  123 Design Avenue,<br />
-                  Harare, Zimbabwe
-                </span>
+                <MapPin className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                <div className="text-sm text-muted-foreground leading-snug">
+                  <span className="font-semibold text-foreground block">Main Showroom:</span>
+                  10670 Harare Highglen Road<br />
+                  (10 kilometres from Highglen)
+                </div>
+              </li>
+              <li className="flex items-center gap-3">
+                <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-bold">Branches</span>
+                <span className="text-sm font-medium text-foreground">Harare • Chiredzi</span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="h-5 w-5 text-muted-foreground shrink-0" />
-                <span className="text-sm text-muted-foreground">+263 770 000 000</span>
+                <a href="https://wa.me/263770000000" target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-foreground transition-colors font-mono">
+                  +263 770 000 000
+                </a>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="h-5 w-5 text-muted-foreground shrink-0" />
-                <span className="text-sm text-muted-foreground">hello@komberakomberafurnitures.com</span>
+                <span className="text-sm text-muted-foreground">sales@komberakomberafurnitures.com</span>
               </li>
             </ul>
           </div>
