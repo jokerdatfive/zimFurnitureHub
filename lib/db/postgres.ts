@@ -7,12 +7,10 @@ declare global {
 }
 
 function createPgPool(): Pool | null {
-  const connectionString =
-    process.env.DIRECT_URL ||
-    process.env.DATABASE_URL ||
-    'postgresql://postgres.tongnlfwkkjgenqxnqbr:Nzvere%401225@aws-1-eu-central-1.pooler.supabase.com:5432/postgres';
+  const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
 
   if (!connectionString) {
+    console.warn('[Postgres] Neither DIRECT_URL nor DATABASE_URL environment variable is set.');
     return null;
   }
 

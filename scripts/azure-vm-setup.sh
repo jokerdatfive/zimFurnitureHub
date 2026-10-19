@@ -21,16 +21,28 @@ echo "🛑 [3/4] Stopping any existing Evolution API containers..."
 sudo docker rm -f evolution_api 2>/dev/null || true
 
 echo "🔥 [4/4] Launching Evolution API v2 Container..."
+# Load .env if present
+if [ -f .env ]; then
+  set -a
+  source .env
+  set +a
+fi
+
+AUTHENTICATION_API_KEY="${AUTHENTICATION_API_KEY:-kk_evolution_secret_token_2026}"
+if [ -z "$DATABASE_CONNECTION_URI" ]; then
+  echo "⚠️ Warning: DATABASE_CONNECTION_URI not set. Please export it or set in .env"
+fi
+
 sudo docker run -d \
   --name evolution_api \
   --restart always \
   -p 8080:8080 \
   -e SERVER_PORT=8080 \
   -e DOCKER_ENV=true \
-  -e AUTHENTICATION_API_KEY="kk_evolution_secret_token_2026" \
+  -e AUTHENTICATION_API_KEY="${AUTHENTICATION_API_KEY}" \
   -e DATABASE_ENABLED=true \
   -e DATABASE_PROVIDER=postgresql \
-  -e DATABASE_CONNECTION_URI="postgresql://postgres.tongnlfwkkjgenqxnqbr:Nzvere%401225@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?schema=evolution" \
+  -e DATABASE_CONNECTION_URI="${DATABASE_CONNECTION_URI}" \
   -e DATABASE_SAVE_DATA_INSTANCE=true \
   -e DATABASE_SAVE_DATA_NEW_MESSAGE=false \
   -e DATABASE_SAVE_MESSAGE_UPDATE=false \
@@ -39,7 +51,7 @@ sudo docker run -d \
   -e DATABASE_SAVE_DATA_LABELS=false \
   -e DATABASE_SAVE_DATA_HISTORIC=false \
   -e CACHE_REDIS_ENABLED=true \
-  -e CACHE_REDIS_URI="rediss://default:gQAAAAAAAgTEAAIgcDFlMjgwZjNkOWZjMjA0NmFjODZmMDgyNmFlNjU5YzVhOA@ace-werewolf-132292.upstash.io:6379" \
+  -e CACHE_REDIS_URI="${CACHE_REDIS_URI}" \
   -e CACHE_REDIS_SAVE_INSTANCES=true \
   -e CACHE_LOCAL_ENABLED=false \
   -e DEL_INSTANCE=false \
