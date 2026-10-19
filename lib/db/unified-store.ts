@@ -151,7 +151,9 @@ export async function getProducts(): Promise<StoredProduct[]> {
       const dbProducts: StoredProduct[] = rows.map((r: any) => {
         const variants = r.variants || [];
         const imagesList = r.images && r.images.length > 0 ? r.images : ['/images/product-sofa.jpg'];
-        const totalStock = variants.reduce((s: number, v: any) => s + (v.stock || 0), 0) || 5;
+        const totalStock = variants.length > 0
+          ? variants.reduce((s: number, v: any) => s + (parseInt(v.stock, 10) || 0), 0)
+          : 0;
         const colorNames = variants.map((v: any) => v.name).filter(Boolean);
 
         return {
@@ -172,7 +174,9 @@ export async function getProducts(): Promise<StoredProduct[]> {
       });
 
       // Merge and update local storage so offline/cache is always fresh
-      writeJsonFile('products.json', dbProducts);
+      try {
+        writeJsonFile('products.json', dbProducts);
+      } catch {}
       return dbProducts;
     }
   } catch (err: any) {
@@ -296,26 +300,33 @@ export async function deleteProduct(productId: string): Promise<boolean> {
 }
 
 export async function quickUpdateProductStock(productId: string, newStock: number): Promise<StoredProduct | null> {
-  const products = readJsonFile<StoredProduct[]>('products.json', getInitialProducts());
-  const item = products.find((p) => p.id === productId);
-  if (!item) return null;
+  const stockVal = Math.max(0, newStock);
 
-  item.stock_quantity = Math.max(0, newStock);
-  writeJsonFile('products.json', products);
-
+  // 1. Update in PostgreSQL directly
   try {
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productId);
     if (isUuid) {
       await queryPg(
         `UPDATE product_variants SET stock_quantity = $1 WHERE product_id = $2`,
-        [item.stock_quantity, productId]
+        [stockVal, productId]
       );
     }
   } catch (err: any) {
-    console.warn('[UnifiedStore] Stock updated in store:', err.message);
+    console.warn('[UnifiedStore] Note: Direct DB quick stock update:', err.message);
   }
 
-  return item;
+  // 2. Also keep local JSON cache in sync
+  const products = readJsonFile<StoredProduct[]>('products.json', getInitialProducts());
+  const item = products.find((p) => p.id === productId);
+  if (item) {
+    item.stock_quantity = stockVal;
+    try {
+      writeJsonFile('products.json', products);
+    } catch {}
+    return item;
+  }
+
+  return null;
 }
 
 /**
@@ -350,7 +361,9 @@ export async function getStockMovements(): Promise<StockMovement[]> {
         logged_by: r.logged_by || 'Store Admin',
         created_at: r.created_at,
       }));
-      writeJsonFile('stock-movements.json', dbMovements);
+      try {
+        writeJsonFile('stock-movements.json', dbMovements);
+      } catch {}
       return dbMovements;
     }
   } catch (err: any) {
@@ -369,58 +382,99 @@ export async function logStockMovement(data: {
   notes?: string;
   loggedBy?: string;
 }): Promise<StockMovement> {
-  const products = readJsonFile<StoredProduct[]>('products.json', getInitialProducts());
-  const product = products.find((p) => p.id === data.productId);
-  const productName = product ? product.name : 'Furniture Piece';
   const qty = Math.abs(data.quantity || 1);
+  const isDeduction = data.movementType === 'SALE_DEDUCTION';
+  const signedQty = isDeduction ? -qty : qty;
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.productId);
 
-  // 1. Adjust product stock
-  if (product) {
-    if (data.movementType === 'PURCHASE_RESTOCK') {
-      product.stock_quantity += qty;
-    } else {
-      product.stock_quantity = Math.max(0, product.stock_quantity - qty);
+  let updatedStockQuantity: number | null = null;
+  let dbProductName = '';
+
+  // 1. Execute direct atomic change in PostgreSQL
+  if (isUuid) {
+    try {
+      if (isDeduction) {
+        await queryPg(
+          `UPDATE product_variants SET stock_quantity = GREATEST(0, stock_quantity - $1) WHERE product_id = $2`,
+          [qty, data.productId]
+        );
+      } else {
+        await queryPg(
+          `UPDATE product_variants SET stock_quantity = stock_quantity + $1 WHERE product_id = $2`,
+          [qty, data.productId]
+        );
+      }
+
+      // Record in immutable stock_movements table
+      await queryPg(
+        `INSERT INTO stock_movements (product_id, movement_type, quantity, unit_cost, supplier, reference_notes, logged_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          data.productId,
+          data.movementType,
+          signedQty,
+          data.unitCost || null,
+          data.supplier || (isDeduction ? 'Customer Sale' : 'Workshop / Supplier'),
+          data.notes || '',
+          data.loggedBy || 'Store Admin'
+        ]
+      );
+
+      const variantRows = await queryPg(
+        `SELECT pv.stock_quantity, p.name 
+         FROM product_variants pv 
+         JOIN products p ON pv.product_id = p.id 
+         WHERE pv.product_id = $1`,
+        [data.productId]
+      );
+      if (variantRows && variantRows.length > 0) {
+        updatedStockQuantity = parseInt(variantRows[0].stock_quantity, 10);
+        dbProductName = variantRows[0].name;
+      }
+    } catch (dbErr: any) {
+      console.warn('[UnifiedStore] Note: DB stock update error:', dbErr.message);
     }
-    writeJsonFile('products.json', products);
   }
 
-  // 2. Append to immutable movement ledger
+  // 2. Adjust local cache
+  const products = readJsonFile<StoredProduct[]>('products.json', getInitialProducts());
+  const product = products.find((p) => p.id === data.productId);
+  const productName = dbProductName || (product ? product.name : 'Furniture Piece');
+
+  if (product) {
+    if (updatedStockQuantity !== null) {
+      product.stock_quantity = updatedStockQuantity;
+    } else {
+      if (isDeduction) {
+        product.stock_quantity = Math.max(0, product.stock_quantity - qty);
+      } else {
+        product.stock_quantity += qty;
+      }
+    }
+    try {
+      writeJsonFile('products.json', products);
+    } catch {}
+  }
+
+  // 3. Append to local movement ledger
   const movements = readJsonFile<StockMovement[]>('stock-movements.json', []);
   const newMovement: StockMovement = {
     id: `mov-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     product_id: data.productId,
     product_name: productName,
     movement_type: data.movementType,
-    quantity: data.movementType === 'PURCHASE_RESTOCK' ? qty : -qty,
+    quantity: signedQty,
     unit_cost: data.unitCost || null,
-    supplier: data.supplier || (data.movementType === 'PURCHASE_RESTOCK' ? 'Workshop / Supplier' : 'Customer Sale'),
+    supplier: data.supplier || (isDeduction ? 'Customer Sale' : 'Workshop / Supplier'),
     reference_notes: data.notes || '',
     logged_by: data.loggedBy || 'Store Admin',
     created_at: new Date().toISOString(),
   };
 
   movements.unshift(newMovement);
-  writeJsonFile('stock-movements.json', movements);
-
-  // 3. Sync to PostgreSQL if reachable
   try {
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.productId);
-    if (isUuid) {
-      await queryPg(
-        `INSERT INTO stock_movements (product_id, movement_type, quantity, unit_cost, supplier, reference_notes, logged_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [data.productId, data.movementType, newMovement.quantity, data.unitCost || null, newMovement.supplier, newMovement.reference_notes, newMovement.logged_by]
-      );
-      if (product) {
-        await queryPg(
-          `UPDATE product_variants SET stock_quantity = $1 WHERE product_id = $2`,
-          [product.stock_quantity, data.productId]
-        );
-      }
-    }
-  } catch (err: any) {
-    console.warn('[UnifiedStore] Logged movement in store. DB sync deferred:', err.message);
-  }
+    writeJsonFile('stock-movements.json', movements);
+  } catch {}
 
   return newMovement;
 }

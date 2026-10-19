@@ -40,8 +40,8 @@ export function Navigation() {
         <span className="opacity-40 hidden sm:inline">•</span>
         <span className="hidden sm:inline">Branches: Harare & Chiredzi</span>
         <span className="opacity-40 hidden md:inline">•</span>
-        <a href="https://wa.me/263770000000" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-80 font-mono">
-          WhatsApp: +263 770 000 000
+        <a href="https://wa.me/263716496040" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-80 font-mono">
+          WhatsApp: +263 716 496 040
         </a>
       </div>
 

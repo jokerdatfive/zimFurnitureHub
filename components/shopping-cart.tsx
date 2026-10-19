@@ -30,7 +30,7 @@ export function ShoppingCart() {
   const onCheckout = () => {
     try {
       setIsLoading(true);
-      const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "263770000000";
+      const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "263716496040";
       
       let message = `Hello Kombera Kombera Furnitures, I would like to order the following:\n\n`;
       items.forEach((item, index) => {

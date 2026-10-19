@@ -23,7 +23,7 @@ export function ProductCard({ id, name, price, image, slug }: ProductCardProps) 
     addToCart({ id, name, price, image });
   };
 
-  const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "263770000000";
+  const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "263716496040";
   const cleanPhone = whatsappNumber.replace(/\D/g, "");
   const whatsappInquiryMessage = encodeURIComponent(
     `Hi KK Furnitures! I am interested in: "${name}" ($${price}). Could you please confirm if this piece is in stock and available for delivery from your Highglen Road showroom (or Chiredzi)?`

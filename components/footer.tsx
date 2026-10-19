@@ -70,13 +70,18 @@ export function Footer() {
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="h-5 w-5 text-muted-foreground shrink-0" />
-                <a href="https://wa.me/263770000000" target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-foreground transition-colors font-mono">
-                  +263 770 000 000
+                <a href="https://wa.me/263716496040" target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-foreground transition-colors font-mono">
+                  +263 716 496 040
                 </a>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="h-5 w-5 text-muted-foreground shrink-0" />
-                <span className="text-sm text-muted-foreground">sales@komberakomberafurnitures.com</span>
+                <div className="flex flex-col text-sm text-muted-foreground">
+                  <a href="mailto:mugwavae@gmail.com" className="hover:text-foreground transition-colors font-mono">
+                    mugwavae@gmail.com
+                  </a>
+                  <span className="text-xs opacity-75">sales@komberakomberafurnitures.com</span>
+                </div>
               </li>
             </ul>
           </div>

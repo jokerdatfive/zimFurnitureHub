@@ -103,7 +103,7 @@ export function AnalyticsClient({
           <div>
             <h1 className="text-2xl font-serif font-black tracking-tight text-black">KOMBERA KOMBERA FURNITURES</h1>
             <p className="text-xs text-black/70">ZimFurnitureHub • Official Executive Business & Inventory Statement</p>
-            <p className="text-xs text-black/80 font-mono mt-1">Showroom: 10670 Harare Highglen Road (10 km from Highglen) • Branches: Harare & Chiredzi</p>
+            <p className="text-xs text-black/80 font-mono mt-1">Showroom: 10670 Harare Highglen Road (10 km from Highglen) • Branches: Harare & Chiredzi • WhatsApp: +263 716 496 040 • Email: mugwavae@gmail.com</p>
           </div>
           <div className="text-right">
             <span className="text-xs uppercase font-bold text-black/60 block">Report Scope</span>

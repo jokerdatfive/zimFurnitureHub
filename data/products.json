@@ -1,22 +1,22 @@
 [
   {
-    "id": "b1000000-0000-0000-0000-000000000001",
-    "name": "Kombera Royal Blue Velvet Bachelor L-Shape Sectional",
-    "slug": "kombera-royal-blue-velvet-bachelor-l-shape-couch-250",
-    "description": "Striking L-shaped sectional couch upholstered in plush royal sapphire velvet with reversible chaise lounge, golden legs, and matching throw pillows.",
-    "base_price": 250,
-    "category_id": "11111111-0000-0000-0000-000000000000",
-    "category_name": "Living Room",
+    "id": "b3000000-0000-0000-0000-000000000005",
+    "name": "Kombera 3-Piece Washed Oak Complete Modular Kitchen Suite",
+    "slug": "kombera-3pc-washed-oak-modular-kitchen-suite-380",
+    "description": "Complete 3-piece modular kitchen workstation: microwave tower hutch, 4-door base buffet credenza with cutlery drawer, and tall pantry column in washed oak.",
+    "base_price": 380,
+    "category_id": "33333333-0000-0000-0000-000000000000",
+    "category_name": "Kitchen & Dining",
     "is_featured": true,
-    "stock_quantity": 12,
-    "sku": "KMB-BAC-BLU-250",
+    "stock_quantity": 5,
+    "sku": "KMB-KIT-3PC-380",
     "images": [
-      "/images/products/kombera-royal-blue-velvet-bachelor-l-shape-couch-250.jpg"
+      "/images/products/kombera-3pc-washed-oak-modular-kitchen-suite-380-v2.jpg"
     ],
     "colors": [
       "Standard Finish"
     ],
-    "created_at": "2026-10-19T06:43:54.818Z"
+    "created_at": "2026-10-19T06:43:54.820Z"
   },
   {
     "id": "b1000000-0000-0000-0000-000000000002",
@@ -494,22 +494,22 @@
     "created_at": "2026-10-19T06:43:54.820Z"
   },
   {
-    "id": "b3000000-0000-0000-0000-000000000005",
-    "name": "Kombera 3-Piece Washed Oak Complete Modular Kitchen Suite",
-    "slug": "kombera-3pc-washed-oak-modular-kitchen-suite-380",
-    "description": "Complete 3-piece modular kitchen workstation: microwave tower hutch, 4-door base buffet credenza with cutlery drawer, and tall pantry column in washed oak.",
-    "base_price": 380,
-    "category_id": "33333333-0000-0000-0000-000000000000",
-    "category_name": "Kitchen & Dining",
+    "id": "b1000000-0000-0000-0000-000000000001",
+    "name": "Kombera Royal Blue Velvet Bachelor L-Shape Sectional",
+    "slug": "kombera-royal-blue-velvet-bachelor-l-shape-couch-250",
+    "description": "Striking L-shaped sectional couch upholstered in plush royal sapphire velvet with reversible chaise lounge, golden legs, and matching throw pillows.",
+    "base_price": 250,
+    "category_id": "11111111-0000-0000-0000-000000000000",
+    "category_name": "Living Room",
     "is_featured": true,
-    "stock_quantity": 5,
-    "sku": "KMB-KIT-3PC-380",
+    "stock_quantity": 12,
+    "sku": "KMB-BAC-BLU-250",
     "images": [
-      "/images/products/kombera-3pc-washed-oak-modular-kitchen-suite-380-v2.jpg"
+      "/images/products/kombera-royal-blue-velvet-bachelor-l-shape-couch-250.jpg"
     ],
     "colors": [
       "Standard Finish"
     ],
-    "created_at": "2026-10-19T06:43:54.820Z"
+    "created_at": "2026-10-19T06:43:54.818Z"
   }
 ]

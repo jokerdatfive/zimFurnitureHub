@@ -110,9 +110,13 @@ export default function OurStory() {
                 (10 kilometres from Highglen)<br />
                 Harare, Zimbabwe
               </p>
+              <p className="text-xs font-mono font-medium text-foreground mt-2">
+                WhatsApp: +263 716 496 040 (0716 496 040)<br />
+                Email: <a href="mailto:mugwavae@gmail.com" className="underline hover:text-primary">mugwavae@gmail.com</a>
+              </p>
               <div className="mt-4 pt-4 border-t border-border flex items-center justify-between text-xs font-semibold">
                 <span className="text-emerald-600 dark:text-emerald-400">Open Mon – Sat (8am – 5pm)</span>
-                <a href="https://wa.me/263770000000" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                <a href="https://wa.me/263716496040" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                   Chat via WhatsApp →
                 </a>
               </div>
@@ -126,9 +130,13 @@ export default function OurStory() {
                 Serving Lowveld & Masvingo Province<br />
                 Zimbabwe
               </p>
+              <p className="text-xs font-mono font-medium text-foreground mt-2">
+                WhatsApp: +263 716 496 040 (0716 496 040)<br />
+                Email: <a href="mailto:mugwavae@gmail.com" className="underline hover:text-primary">mugwavae@gmail.com</a>
+              </p>
               <div className="mt-4 pt-4 border-t border-border flex items-center justify-between text-xs font-semibold">
                 <span className="text-emerald-600 dark:text-emerald-400">Open Mon – Sat (8am – 5pm)</span>
-                <a href="https://wa.me/263770000000" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                <a href="https://wa.me/263716496040" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                   Inquire Branch Stock →
                 </a>
               </div>

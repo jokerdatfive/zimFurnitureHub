@@ -14,7 +14,7 @@ export function WhatsAppInquiryBox({
   productName,
   price,
   inStock,
-  whatsappNumber = "263770000000",
+  whatsappNumber = "263716496040",
 }: WhatsAppInquiryBoxProps) {
   const cleanPhone = whatsappNumber.replace(/\D/g, "");
 

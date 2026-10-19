@@ -1,38 +1,50 @@
 [
   {
-    "id": "mov-001",
+    "id": "26f0fcfc-00a6-41ab-8eb2-7ab72c138a96",
+    "product_id": "b3000000-0000-0000-0000-000000000005",
+    "product_name": "Kombera 3-Piece Washed Oak Complete Modular Kitchen Suite",
+    "movement_type": "PURCHASE_RESTOCK",
+    "quantity": 2,
+    "unit_cost": 380,
+    "supplier": "Restock Verification",
+    "reference_notes": "Restoring initial units",
+    "logged_by": "Integration Test",
+    "created_at": "2026-10-19T10:13:16.237Z"
+  },
+  {
+    "id": "0c0af3a7-7ecf-4de5-b7a9-5c0db5a381d6",
+    "product_id": "b3000000-0000-0000-0000-000000000005",
+    "product_name": "Kombera 3-Piece Washed Oak Complete Modular Kitchen Suite",
+    "movement_type": "SALE_DEDUCTION",
+    "quantity": -2,
+    "unit_cost": 380,
+    "supplier": "WhatsApp Order & Delivery",
+    "reference_notes": "Testing automated deduction of 2 units",
+    "logged_by": "Integration Test",
+    "created_at": "2026-10-19T10:13:15.226Z"
+  },
+  {
+    "id": "2b80cca9-b15c-4378-a022-6d4955b164dc",
     "product_id": "b1000000-0000-0000-0000-000000000001",
     "product_name": "Kombera Royal Blue Velvet Bachelor L-Shape Sectional",
     "movement_type": "PURCHASE_RESTOCK",
-    "quantity": 5,
-    "unit_cost": 160,
-    "supplier": "Bulawayo Workshop Carpentry Hub",
-    "reference_notes": "Received batch of 5 brand new sectionals in plush velvet.",
+    "quantity": 1,
+    "unit_cost": 250,
+    "supplier": "Showroom Restock",
+    "reference_notes": "Restored initial test unit",
     "logged_by": "Store Admin",
-    "created_at": "2026-10-17T06:46:16.135Z"
+    "created_at": "2026-10-19T10:05:43.126Z"
   },
   {
-    "id": "mov-002",
+    "id": "97e90bd6-d61b-4491-ae46-f28e7c7ac329",
     "product_id": "b1000000-0000-0000-0000-000000000001",
     "product_name": "Kombera Royal Blue Velvet Bachelor L-Shape Sectional",
     "movement_type": "SALE_DEDUCTION",
     "quantity": -1,
     "unit_cost": 250,
-    "supplier": "WhatsApp Order & Delivery",
-    "reference_notes": "Sold to customer from Avondale, delivered with receipt #1042.",
+    "supplier": "Customer Sale",
+    "reference_notes": "Automated Verification Sale Deduction",
     "logged_by": "Store Admin",
-    "created_at": "2026-10-18T06:46:16.136Z"
-  },
-  {
-    "id": "mov-003",
-    "product_id": "b1000000-0000-0000-0000-000000000003",
-    "product_name": "Kombera 3pc Washed Oak Modular Kitchen Suite",
-    "movement_type": "PURCHASE_RESTOCK",
-    "quantity": 3,
-    "unit_cost": 240,
-    "supplier": "Harare Timber & Joinery Mills",
-    "reference_notes": "Restocked washed oak modular sets.",
-    "logged_by": "Store Admin",
-    "created_at": "2026-10-14T06:46:16.136Z"
+    "created_at": "2026-10-19T10:05:42.297Z"
   }
 ]

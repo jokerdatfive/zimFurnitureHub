@@ -118,7 +118,7 @@ export default async function ProductDetailPage({
   const variants = product.product_variants || [];
   const colorVariants = variants.filter((v: any) => v.name && v.name !== "Standard");
 
-  const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "263770000000";
+  const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "263716496040";
   const whatsappOrderMessage = encodeURIComponent(
     `Hi KK Furnitures! I am interested in purchasing/layby for: "${product.name}" ($${displayPrice}). Could you please confirm current stock and delivery to Harare?`
   );
