@@ -76,7 +76,7 @@ export function Footer() {
                     +263 716 496 040
                   </a>
                   <a href="tel:0775362010" className="text-sm text-muted-foreground hover:text-foreground transition-colors font-mono">
-                    <span className="text-[11px] text-foreground font-semibold block">EcoCash / Mukuru (Direct Dial):</span>
+                    <span className="text-[11px] text-foreground font-semibold block">EcoCash / Mukuru / InnBucks (Direct Dial):</span>
                     0775 362 010
                   </a>
                 </div>
@@ -115,6 +115,14 @@ export function Footer() {
             >
               <PhoneCall className="h-3.5 w-3.5 text-amber-600" />
               <span>Mukuru: 0775 362 010</span>
+            </a>
+            <a
+              href="tel:0775362010"
+              title="Tap to call InnBucks line 0775362010 directly from your phonepad"
+              className="inline-flex items-center gap-1.5 text-xs font-mono font-semibold text-foreground bg-secondary/70 hover:bg-secondary border border-border hover:border-primary px-3 py-1.5 rounded-lg shadow-xs transition-colors"
+            >
+              <PhoneCall className="h-3.5 w-3.5 text-blue-600" />
+              <span>InnBucks: 0775 362 010</span>
             </a>
           </div>
         </div>

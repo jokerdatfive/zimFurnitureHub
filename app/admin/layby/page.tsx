@@ -184,6 +184,8 @@ export default async function LaybyPage() {
                   className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   <option value="EcoCash">EcoCash (Mobile Money)</option>
+                  <option value="InnBucks">InnBucks</option>
+                  <option value="Mukuru">Mukuru</option>
                   <option value="USD_Cash">USD Cash in Showroom</option>
                   <option value="Bank_Transfer">Bank Transfer</option>
                 </select>
@@ -297,12 +299,14 @@ export default async function LaybyPage() {
                           className="bg-background border border-border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
                         >
                           <option value="EcoCash">EcoCash</option>
+                          <option value="InnBucks">InnBucks</option>
+                          <option value="Mukuru">Mukuru</option>
                           <option value="USD_Cash">Cash USD</option>
                           <option value="Bank_Transfer">Bank</option>
                         </select>
                         <input
                           name="reference"
-                          placeholder="EcoCash Ref / Receipt #"
+                          placeholder="EcoCash / InnBucks Ref #"
                           className="flex-1 bg-background border border-border rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
                         />
                         <Button type="submit" size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs whitespace-nowrap">

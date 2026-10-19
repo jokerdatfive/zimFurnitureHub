@@ -112,7 +112,7 @@ export default function OurStory() {
               </p>
               <p className="text-xs font-mono font-medium text-foreground mt-2 leading-relaxed">
                 WhatsApp: +263 716 496 040 (0716 496 040)<br />
-                EcoCash / Mukuru: <a href="tel:0775362010" className="underline hover:text-primary">0775 362 010</a><br />
+                EcoCash / Mukuru / InnBucks: <a href="tel:0775362010" className="underline hover:text-primary">0775 362 010</a><br />
                 Email: <a href="mailto:mugwavae@gmail.com" className="underline hover:text-primary">mugwavae@gmail.com</a>
               </p>
               <div className="mt-4 pt-4 border-t border-border flex items-center justify-between text-xs font-semibold">
@@ -133,7 +133,7 @@ export default function OurStory() {
               </p>
               <p className="text-xs font-mono font-medium text-foreground mt-2 leading-relaxed">
                 WhatsApp: +263 716 496 040 (0716 496 040)<br />
-                EcoCash / Mukuru: <a href="tel:0775362010" className="underline hover:text-primary">0775 362 010</a><br />
+                EcoCash / Mukuru / InnBucks: <a href="tel:0775362010" className="underline hover:text-primary">0775 362 010</a><br />
                 Email: <a href="mailto:mugwavae@gmail.com" className="underline hover:text-primary">mugwavae@gmail.com</a>
               </p>
               <div className="mt-4 pt-4 border-t border-border flex items-center justify-between text-xs font-semibold">
