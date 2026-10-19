@@ -27,11 +27,6 @@ export function AdminNav() {
       badge: "Movements",
     },
     {
-      name: "Leads",
-      href: "/admin/leads",
-      icon: Users,
-    },
-    {
       name: "Layby Accounts",
       href: "/admin/layby",
       icon: ReceiptText,

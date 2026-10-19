@@ -359,7 +359,7 @@ export async function getStockMovements(): Promise<StockMovement[]> {
         supplier: r.supplier || 'Warehouse',
         reference_notes: r.reference_notes || '',
         logged_by: r.logged_by || 'Store Admin',
-        created_at: r.created_at,
+        created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at || new Date().toISOString()),
       }));
       try {
         writeJsonFile('stock-movements.json', dbMovements);
@@ -510,8 +510,8 @@ export async function getLeads(includeCasual: boolean = false): Promise<StoredLe
           is_casual_chat: isCasual,
           confidence: r.confidence ? parseFloat(r.confidence) : 1.0,
           needs_review: Boolean(r.needs_review),
-          created_at: r.created_at,
-          updated_at: r.updated_at || r.created_at,
+          created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at || new Date().toISOString()),
+          updated_at: r.updated_at instanceof Date ? r.updated_at.toISOString() : String(r.updated_at || r.created_at || new Date().toISOString()),
         };
       });
 
@@ -590,8 +590,8 @@ export async function getLaybys(): Promise<StoredLayby[]> {
           ...p,
           amount: parseFloat(p.amount) || 0,
         })),
-        created_at: r.created_at,
-        updated_at: r.updated_at || r.created_at,
+        created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at || new Date().toISOString()),
+        updated_at: r.updated_at instanceof Date ? r.updated_at.toISOString() : String(r.updated_at || r.created_at || new Date().toISOString()),
       }));
 
       writeJsonFile('laybys.json', dbLaybys);
@@ -821,20 +821,32 @@ export async function getBusinessAnalytics(period: 'day' | 'week' | 'month' | 'a
   }
 
   periodLeads.forEach((l) => {
-    if (!l.is_casual_chat) {
-      const key = l.created_at.split('T')[0];
-      if (daysMap.has(key)) daysMap.get(key)!.leads++;
+    if (!l.is_casual_chat && l.created_at) {
+      try {
+        const d = new Date(l.created_at);
+        if (!isNaN(d.getTime())) {
+          const key = d.toISOString().split('T')[0];
+          if (daysMap.has(key)) daysMap.get(key)!.leads++;
+        }
+      } catch {}
     }
   });
 
   periodMovements.forEach((m) => {
-    const key = m.created_at.split('T')[0];
-    if (daysMap.has(key)) {
-      if (m.movement_type === 'PURCHASE_RESTOCK') {
-        daysMap.get(key)!.restocks += Math.abs(m.quantity);
-      } else {
-        daysMap.get(key)!.sales += Math.abs(m.quantity);
-      }
+    if (m.created_at) {
+      try {
+        const d = new Date(m.created_at);
+        if (!isNaN(d.getTime())) {
+          const key = d.toISOString().split('T')[0];
+          if (daysMap.has(key)) {
+            if (m.movement_type === 'PURCHASE_RESTOCK') {
+              daysMap.get(key)!.restocks += Math.abs(m.quantity);
+            } else {
+              daysMap.get(key)!.sales += Math.abs(m.quantity);
+            }
+          }
+        }
+      } catch {}
     }
   });
 
