@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { ShowroomLocationMap } from "@/components/showroom-map";
 
 export default function OurStory() {
   return (
@@ -100,6 +101,10 @@ export default function OurStory() {
           <p className="text-sm text-muted-foreground max-w-xl mx-auto mb-10">
             Experience our handcrafted furniture pieces in person, inspect wood finishes, and discuss custom bespoke orders.
           </p>
+
+          <div className="mb-12">
+            <ShowroomLocationMap />
+          </div>
 
           <div className="grid md:grid-cols-2 gap-6 text-left">
             <div className="p-6 rounded-2xl bg-secondary/30 border border-border">
