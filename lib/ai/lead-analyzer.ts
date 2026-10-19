@@ -82,21 +82,21 @@ export interface AnalyzeInput {
 }
 
 /**
- * Returns the configured AI model, or null when no key is configured.
+ * Models to try in order. Gemini Flash models are free-tier but get "high demand"
+ * errors at peak times, so a second, lighter model is tried before falling back
+ * to the keyword classifier.
  */
-function getAIModel() {
+function getAIModels() {
   const provider = (process.env.AI_PROVIDER || 'google').toLowerCase();
 
   if (provider === 'openai' && process.env.OPENAI_API_KEY) {
-    return openai('gpt-4o-mini');
+    return [openai('gpt-4o-mini')];
   }
 
-  const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GOOGLE_API_KEY;
-  if (apiKey) {
-    return google(process.env.GEMINI_MODEL || 'gemini-2.5-flash');
-  }
+  if (!(process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GOOGLE_API_KEY)) return [];
 
-  return null;
+  const names = [process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite', 'gemini-3.5-flash-lite'];
+  return [...new Set(names)].map((name) => google(name));
 }
 
 /**
@@ -239,17 +239,12 @@ export async function analyzeLeadMessage(input: AnalyzeInput): Promise<AILeadAna
 
   try {
     const transcript = await getConversationContext(contact.id, contact.push_name);
-    const model = getAIModel();
-    let analysis: Analysis;
+    const models = getAIModels();
+    let analysis: Analysis | null = null;
 
-    if (model) {
-      try {
-        const today = new Date().toISOString().slice(0, 10);
-        const result = await generateObject({
-          model,
-          schema: LeadAnalysisSchema,
-          system: SYSTEM_PROMPT,
-          prompt: `Today's date: ${today}
+    if (models.length > 0) {
+      const today = new Date().toISOString().slice(0, 10);
+      const prompt = `Today's date: ${today}
 
 NEWEST MESSAGE (from ${fromMe ? 'the KK rep' : 'the customer'}):
 "${messageText.slice(0, 1000)}"
@@ -257,16 +252,30 @@ NEWEST MESSAGE (from ${fromMe ? 'the KK rep' : 'the customer'}):
 RECENT CONVERSATION (chronological, newest last):
 ${transcript || '(no prior history)'}
 
-Output the structured analysis.`,
-          temperature: 0.1,
-        });
-        analysis = result.object;
-      } catch (genErr: any) {
-        console.warn('[AI Engine] Model failed (' + genErr.message + '). Using heuristic classifier.');
-        analysis = heuristicRetailAnalysis(messageText, transcript);
+Output the structured analysis.`;
+
+      for (const model of models) {
+        try {
+          const result = await generateObject({
+            model,
+            schema: LeadAnalysisSchema,
+            system: SYSTEM_PROMPT,
+            prompt,
+            temperature: 0.1,
+            maxRetries: 1,
+          });
+          analysis = result.object;
+          break;
+        } catch (genErr: any) {
+          console.warn(`[AI Engine] ${model.modelId} failed (${genErr.message}).`);
+        }
       }
     } else {
-      console.warn('[AI Engine] No AI key configured. Using heuristic classifier.');
+      console.warn('[AI Engine] No AI key configured.');
+    }
+
+    if (!analysis) {
+      console.warn('[AI Engine] Using heuristic classifier.');
       analysis = heuristicRetailAnalysis(messageText, transcript);
     }
 
