@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { BrandLogo } from "@/components/brand-logo";
-import { Facebook, Instagram, Twitter, Mail, Phone, MapPin } from "lucide-react";
+import { Facebook, Instagram, Twitter, Mail, Phone, MapPin, PhoneCall } from "lucide-react";
 
 export function Footer() {
   return (
@@ -68,11 +68,18 @@ export function Footer() {
                 <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-bold">Branches</span>
                 <span className="text-sm font-medium text-foreground">Harare • Chiredzi</span>
               </li>
-              <li className="flex items-center gap-3">
-                <Phone className="h-5 w-5 text-muted-foreground shrink-0" />
-                <a href="https://wa.me/263716496040" target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-foreground transition-colors font-mono">
-                  +263 716 496 040
-                </a>
+              <li className="flex items-start gap-3">
+                <Phone className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                <div className="flex flex-col space-y-1">
+                  <a href="https://wa.me/263716496040" target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-foreground transition-colors font-mono">
+                    <span className="text-[11px] text-foreground font-semibold block">Showroom WhatsApp:</span>
+                    +263 716 496 040
+                  </a>
+                  <a href="tel:0775362010" className="text-sm text-muted-foreground hover:text-foreground transition-colors font-mono">
+                    <span className="text-[11px] text-foreground font-semibold block">EcoCash / Mukuru (Direct Dial):</span>
+                    0775 362 010
+                  </a>
+                </div>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="h-5 w-5 text-muted-foreground shrink-0" />
@@ -91,10 +98,24 @@ export function Footer() {
           <p className="text-xs text-muted-foreground">
             © {new Date().getFullYear()} Kombera Kombera Furnitures. All rights reserved.
           </p>
-          <div className="flex gap-4">
-            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest border border-border px-2 py-1 rounded">Visa</span>
-            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest border border-border px-2 py-1 rounded">Mastercard</span>
-            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest border border-border px-2 py-1 rounded">EcoCash</span>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <span className="text-xs text-muted-foreground font-medium">Direct Dial Payments:</span>
+            <a
+              href="tel:0775362010"
+              title="Tap to call EcoCash line 0775362010 directly from your phonepad"
+              className="inline-flex items-center gap-1.5 text-xs font-mono font-semibold text-foreground bg-secondary/70 hover:bg-secondary border border-border hover:border-primary px-3 py-1.5 rounded-lg shadow-xs transition-colors"
+            >
+              <PhoneCall className="h-3.5 w-3.5 text-emerald-600" />
+              <span>EcoCash: 0775 362 010</span>
+            </a>
+            <a
+              href="tel:0775362010"
+              title="Tap to call Mukuru line 0775362010 directly from your phonepad"
+              className="inline-flex items-center gap-1.5 text-xs font-mono font-semibold text-foreground bg-secondary/70 hover:bg-secondary border border-border hover:border-primary px-3 py-1.5 rounded-lg shadow-xs transition-colors"
+            >
+              <PhoneCall className="h-3.5 w-3.5 text-amber-600" />
+              <span>Mukuru: 0775 362 010</span>
+            </a>
           </div>
         </div>
       </div>

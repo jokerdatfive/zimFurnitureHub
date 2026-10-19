@@ -10,6 +10,7 @@
 | **Session Lifetime** | 7 Days (Persistent HttpOnly Cookie) |
 | **Admin WhatsApp & Contact** | `0716496040` (`+263 716 496 040`) |
 | **Admin / Store Email** | `mugwavae@gmail.com` |
+| **EcoCash & Mukuru Call Line** | `0775362010` (`tel:0775362010`) |
 
 ---
 
